@@ -1,0 +1,2554 @@
+<title>EVSC Member Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap">
+<style>
+/* Dark is the baseline: this is what the dashboard is, and light is the opt-in.
+   Only the in-page toggle changes it, so the result is predictable no matter
+   what theme the host or the operating system happens to be set to. */
+:root {
+  color-scheme: dark;
+  --bg: #14100F;
+  --raised: #1E1717;
+  --sunken: #191313;
+  --hover: #241B1B;
+  --line: #302525;
+  --line-soft: #241B1B;
+  --line-firm: #4A3939;
+  --text: #F5EDED;
+  --text-2: #C7B8B8;
+  --muted: #948383;
+  --brand: #FF4B5C;
+  --brand-hover: #FF6B79;
+  --brand-wash: #3A1418;
+  --on-brand: #14100F;
+  --good: #3DDC84;
+  --warning: #FFB020;
+  --critical: #FF7A45;
+  --good-wash: #16301F;
+  --warning-wash: #33260C;
+  --critical-wash: #3A1E12;
+  --s1: #5AA9E6;
+  --s2: #3FC6C0;
+  --s3: #B69AF0;
+  --s4: #E8C34A;
+  --grid: rgba(245,237,237,.09);
+  --scrim: rgba(0,0,0,.62);
+  --shadow-1: none;
+  --shadow-2: 0 8px 28px rgba(0,0,0,.6);
+  --h0: #1A1414;
+  --h1: #0F1E2C;
+  --h2: #153048;
+  --h3: #1D4A6B;
+  --h4: #2A6C93;
+  --h5: #4A93BE;
+  --h6: #7DBBDD;
+}
+
+:root[data-ui="light"] {
+  color-scheme: light;
+  --bg: #FAF8F8;
+  --raised: #FFFFFF;
+  --sunken: #F2EEEE;
+  --hover: #F2EEEE;
+  --line: #E7E1E1;
+  --line-soft: #EFEAEA;
+  --line-firm: #D5CBCB;
+  --text: #1A1315;
+  --text-2: #5A4F50;
+  --muted: #726667;
+  --brand: #C81E30;
+  --brand-hover: #A81729;
+  --brand-wash: #FDEBEC;
+  --on-brand: #FFFFFF;
+  --good: #157A40;
+  --warning: #AB5100;
+  --critical: #BF3C1B;
+  --good-wash: #E8F4EC;
+  --warning-wash: #FBF0E2;
+  --critical-wash: #FBEBE5;
+  --s1: #1D6FB8;
+  --s2: #0E7C7B;
+  --s3: #7A4FC9;
+  --s4: #B8860B;
+  --grid: rgba(26,19,21,.09);
+  --scrim: rgba(26,19,21,.34);
+  --shadow-1: 0 1px 2px rgba(26,19,21,.05);
+  --shadow-2: 0 1px 2px rgba(26,19,21,.06), 0 8px 24px rgba(26,19,21,.08);
+  --h0: #F4F1F1;
+  --h1: #EAF3FB;
+  --h2: #C7E1F5;
+  --h3: #9BC9EA;
+  --h4: #6BAEDB;
+  --h5: #3B8EC4;
+  --h6: #1D6FA8;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { background: var(--bg); }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, p { margin: 0; }
+h1 { font-size: 26px; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; }
+h2 { font-size: 19px; font-weight: 600; letter-spacing: -.011em; line-height: 1.3; }
+h3 { font-size: 15px; font-weight: 600; letter-spacing: -.004em; line-height: 1.4; }
+button, input, select { color: inherit; font: inherit; }
+button, [role="button"], input, select, label { -webkit-tap-highlight-color: var(--clear); }
+a { color: var(--s1); }
+[hidden] { display: none !important; }
+
+:focus-visible {
+  border-radius: var(--r-sm);
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.wrap { width: 100%; max-width: 1240px; margin-inline: auto; padding-inline: var(--pad); }
+.num, .tnum, .kpi, .heat, .kv dd, table, .mcard .stats { font-variant-numeric: tabular-nums; }
+.num { font-weight: 600; letter-spacing: -.025em; line-height: 1.05; }
+.eyebrow {
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid var(--line);
+  background: var(--raised);
+}
+.topbar-in { display: flex; min-height: 63px; align-items: center; gap: 16px; padding-block: 8px; }
+.brandlock { display: flex; min-width: 0; align-items: center; gap: 12px; margin-right: auto; }
+/* The logo is transparent artwork whose "STRENGTH" and "ESTD 2009" type is white,
+   so it needs a dark ground to be readable. The tile is the same fixed colour in
+   both modes: it disappears into the dark header and reads as a deliberate badge
+   on light. The artwork itself is never altered. */
+.brandlock img {
+  display: block;
+  width: auto;
+  height: 40px;
+  flex: none;
+  padding: 4px 7px;
+  border-radius: 8px;
+  background: #14100F;
+}
+.brandlock .bt { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.brandlock .bt strong {
+  overflow: hidden;
+  color: var(--text);
+  font-family: "Rajdhani", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.brandlock .bt span { color: var(--brand); font-size: 11px; font-weight: 600; letter-spacing: .04em; line-height: 1.3; }
+.freshness { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+#heat-summary { display: none; }
+@media (max-width: 720px) { #heat-summary { display: block; margin-bottom: 12px; } }
+
+.periods { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: var(--r); background: var(--sunken); }
+.periods button {
+  min-height: 32px;
+  padding: 6px 11px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--clear);
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+.periods button:hover { background: var(--hover); color: var(--text); }
+.periods button[aria-pressed="true"] { background: var(--raised); color: var(--text); }
+
+.btn {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border: 1px solid var(--line-firm);
+  border-radius: var(--r);
+  background: var(--raised);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
+}
+.btn:hover { border-color: var(--text-2); background: var(--hover); }
+.btn-primary { border-color: var(--brand); background: var(--brand); color: var(--on-brand); }
+.btn-primary:hover { border-color: var(--brand-hover); background: var(--brand-hover); color: var(--on-brand); }
+.btn-sm { min-height: 32px; padding: 5px 10px; font-size: 12px; }
+.btn-icon { width: 36px; padding: 0; }
+#theme-toggle { flex: none; color: var(--text-2); }
+#theme-toggle:hover { color: var(--text); }
+#theme-toggle svg { width: 18px; height: 18px; }
+
+.tabs {
+  position: sticky;
+  top: var(--topbar-h, 63px);
+  z-index: 30;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.tabs-in { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.tabs-in::-webkit-scrollbar { display: none; }
+.tab {
+  position: relative;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 0;
+  background: var(--clear);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+.tab::after {
+  position: absolute;
+  right: 14px;
+  bottom: -1px;
+  left: 14px;
+  height: 2px;
+  background: var(--clear);
+  content: "";
+}
+.tab:hover { background: var(--hover); color: var(--text-2); }
+.tab[aria-selected="true"] { color: var(--text); }
+.tab[aria-selected="true"]::after { background: var(--brand); }
+.tab .cnt {
+  display: inline-flex;
+  min-width: 20px;
+  min-height: 20px;
+  align-items: center;
+  justify-content: center;
+  margin-left: 7px;
+  padding-inline: 6px;
+  border-radius: 10px;
+  background: var(--brand-wash);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+main { padding-block: 24px 48px; }
+.screen[hidden] { display: none; }
+.sec { margin-top: 32px; }
+.sec-h, .card-h { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.sec-h { margin-bottom: 12px; }
+.sec-h .sub, .card-h .sub { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.card-h .sub { margin-left: auto; }
+.grid { display: grid; gap: 16px; }
+
+.card { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--raised); }
+.card-h { padding: 16px 16px 12px; border-bottom: 1px solid var(--line-soft); }
+.card-b { padding: 16px; }
+
+.narrative {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 16px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--sunken);
+}
+.narrative .dt { display: flex; flex: none; flex-direction: column; gap: 4px; }
+.narrative .hello { font-size: 19px; font-weight: 600; letter-spacing: -.011em; line-height: 1.3; }
+.narrative .date { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.narrative .txt { min-width: 0; flex: 1; color: var(--text-2); font-size: 14px; line-height: 1.5; }
+.narrative .txt b { color: var(--text); font-weight: 600; }
+
+.kpis { grid-template-columns: repeat(auto-fit, minmax(212px, 1fr)); }
+.kpi { display: flex; min-width: 0; flex-direction: column; gap: 8px; padding: 16px; border-top: 1px solid var(--line); background: var(--raised); }
+.kpi .lab { color: var(--text-2); font-size: 11px; font-weight: 600; letter-spacing: .06em; line-height: 1.3; text-transform: uppercase; }
+.kpi .row { display: flex; align-items: flex-end; gap: 8px; }
+.kpi .val { font-size: 34px; }
+.kpi .unit { padding-bottom: 3px; color: var(--muted); font-size: 14px; font-weight: 500; }
+.kpi .delta { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding-bottom: 5px; font-size: 12.5px; font-weight: 600; }
+.kpi .foot { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.up { color: var(--good); }
+.down { color: var(--critical); }
+.flat { color: var(--muted); }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.pill svg { width: 11px; height: 11px; flex: none; }
+.pill-red { background: var(--critical-wash); color: var(--critical); }
+.pill-amber { background: var(--warning-wash); color: var(--warning); }
+.pill-green { background: var(--good-wash); color: var(--good); }
+.pill-new { background: var(--brand-wash); color: var(--brand); }
+
+.calls { display: flex; flex-direction: column; gap: 12px; }
+.call {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+  overflow: hidden;
+  padding: 15px 17px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+}
+.call::before { position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--line-firm); content: ""; }
+.call.r-red::before { background: var(--critical); }
+.call.r-amber::before { background: var(--warning); }
+.call.r-green::before { background: var(--good); }
+.call.r-new::before { background: var(--s1); }
+.call.done { opacity: .5; }
+.call .rank { padding-top: 2px; color: var(--muted); font-size: 18px; font-weight: 600; text-align: center; }
+.call .who { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.call .nm { font-size: 15px; font-weight: 600; letter-spacing: -.004em; line-height: 1.4; }
+.call .meta { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.call .why { margin-top: 8px; color: var(--text-2); }
+.call .why b { color: var(--text); font-weight: 600; }
+.call .msg { margin-top: 12px; padding: 12px; border: 1px solid var(--line-soft); border-radius: var(--r); background: var(--sunken); color: var(--text-2); font-size: 12.5px; line-height: 1.45; }
+.call .msg .mlab { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .06em; line-height: 1.3; text-transform: uppercase; }
+.call .side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.call .acts { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.spark { display: block; max-width: 100%; }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--raised); }
+table { width: 100%; min-width: 840px; border-collapse: collapse; font-size: 14px; }
+thead th { height: 44px; padding: 0 13px; border-bottom: 1px solid var(--line); background: var(--sunken); color: var(--text-2); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-align: left; text-transform: uppercase; white-space: nowrap; }
+thead th.sortable { cursor: pointer; user-select: none; }
+thead th.sortable:hover { background: var(--hover); color: var(--text); }
+tbody tr { height: 44px; cursor: pointer; }
+tbody td { height: 44px; padding: 0 13px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td, tbody tr.sel td { background: var(--hover); }
+td.r, th.r { text-align: right; }
+.mname { color: var(--text); font-weight: 600; }
+
+.mcards { display: none; }
+.mcard { padding: 13px 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); }
+.mcard .top { display: flex; align-items: center; gap: 9px; }
+.mcard .top .nm { min-width: 0; flex: 1; overflow: hidden; font-size: 15px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.mcard .top .pill { flex: none; }
+.mcard .stats { display: flex; align-items: baseline; gap: 8px 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+.mcard .stats b { color: var(--text); font-weight: 600; }
+
+.filters { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.search { min-width: 230px; max-width: 340px; min-height: 36px; flex: 1; padding: 7px 12px; border: 1px solid var(--line-firm); border-radius: var(--r); background: var(--raised); color: var(--text); font-size: 13px; }
+.search::placeholder { color: var(--muted); }
+.chip { min-height: 34px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--raised); color: var(--text-2); cursor: pointer; font-size: 12px; font-weight: 500; transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out; }
+.chip:hover { border-color: var(--line-firm); background: var(--hover); color: var(--text); }
+.chip[aria-pressed="true"] { border-color: var(--text); background: var(--text); color: var(--bg); }
+
+.heat { display: grid; min-width: 760px; gap: 3px; }
+.heat .hlab { display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; color: var(--muted); font-size: 11px; font-weight: 600; }
+.heat .hcol { color: var(--muted); font-size: 11px; text-align: center; }
+.heat .cell { position: relative; height: 26px; border-radius: 4px; }
+.heat .cell.cls::after { position: absolute; right: 4px; bottom: 3px; left: 4px; height: 2px; border-radius: 2px; background: var(--brand); content: ""; }
+.legend { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; flex-wrap: wrap; }
+.legend .sw { display: flex; gap: 2px; }
+.legend .sw i { display: block; width: 22px; height: 11px; border-radius: 2px; }
+
+.bench { display: flex; flex-direction: column; gap: 5px; }
+.bench .track { position: relative; height: 6px; overflow: hidden; border-radius: 4px; background: var(--sunken); }
+.bench .fill { display: block; height: 100%; border-radius: 4px; }
+.bench .mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text-2); }
+.bench .cap { color: var(--muted); font-size: 12.5px; }
+
+.tooltip { position: fixed; z-index: 99; max-width: 260px; padding: 8px 11px; border: 1px solid var(--line-firm); border-radius: var(--r); background: var(--text); color: var(--bg); font-size: 12.5px; line-height: 1.45; opacity: 0; pointer-events: none; transition: opacity 120ms ease-out; }
+.tooltip b { color: var(--bg); }
+.tooltip .tk { color: var(--muted); }
+.empty { padding: 32px 16px; color: var(--muted); font-size: 13px; text-align: center; }
+.empty strong { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 15px; font-weight: 600; }
+.note { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.note b { color: var(--text-2); font-weight: 600; }
+
+.drawer { position: fixed; inset: 0; z-index: 60; display: none; background: var(--scrim); }
+.drawer[open] { display: block; }
+.drawer-p { position: absolute; top: 0; right: 0; bottom: 0; width: min(560px, 100%); overflow-y: auto; padding: 24px var(--pad) 48px; border-left: 1px solid var(--line); background: var(--bg); transition: transform 220ms ease-out; }
+.drawer-x { position: absolute; top: 14px; right: 14px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 12.5px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; text-align: right; }
+.dropzone { padding: 24px; border: 1px dashed var(--line-firm); border-radius: var(--r-lg); background: var(--sunken); color: var(--text-2); font-size: 12.5px; text-align: center; transition: background-color 140ms ease-out, border-color 140ms ease-out; }
+.dropzone.over { border-color: var(--brand); background: var(--brand-wash); }
+
+@media (max-width: 720px) {
+  .topbar { position: static; }
+  .topbar-in { align-items: flex-start; flex-wrap: wrap; }
+  .brandlock { width: calc(100% - 52px); }
+  .periods { width: 100%; overflow-x: auto; }
+  .periods button { min-width: max-content; flex: 1; }
+  .tabs { top: 0; }
+  .btn, .btn-sm, .btn-icon, .chip, .search, .periods button, input, select { min-height: 44px; }
+  .btn-icon { width: 44px; }
+  main { padding-top: 16px; }
+  #screen-action { display: flex; flex-direction: column; }
+  #screen-action > .narrative { order: 1; }
+  #screen-action > .sec-calls,
+  #screen-action > .sec:nth-of-type(3) { order: 2; }
+  #screen-action > .kpis { order: 3; }
+  #screen-action > .sec-onboard,
+  #screen-action > .sec:nth-of-type(4) { order: 4; }
+  #screen-action > .sec-wins,
+  #screen-action > .sec:nth-of-type(5) { order: 5; }
+  .narrative { flex-direction: column; gap: 12px; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .call { grid-template-columns: 26px minmax(0, 1fr); padding: 13px 14px; }
+  .call .side { grid-column: 1 / -1; align-items: stretch; }
+  .call .acts { justify-content: flex-start; }
+  .tablewrap { display: none; }
+  .mcards { display: flex; flex-direction: column; gap: 12px; }
+  .filters .search { width: 100%; max-width: none; flex-basis: 100%; }
+  .drawer-p { border-left: 0; }
+}
+
+@media (max-width: 440px) {
+  .brandlock .bt span { display: none; }
+  .kpis { grid-template-columns: 1fr; }
+  .card-h .sub { width: 100%; margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+
+@media print {
+  .topbar { position: static; }
+  .tabs, .periods, .btn, .drawer, .tooltip { display: none !important; }
+  body { background: var(--raised); color: var(--text); }
+  main { padding: 0; }
+  .wrap { max-width: none; padding: 0; }
+  .card, .call, .tablewrap { break-inside: avoid; }
+}
+</style>
+
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <div class="brandlock">
+      <img id="logo" alt="East Valley Strength &amp; Conditioning">
+      <div class="bt">
+        <strong>East Valley Strength</strong>
+        <span>Member Intelligence</span>
+      </div>
+    </div>
+    <span class="freshness" id="freshness"><i></i><span id="freshness-text"></span></span>
+    <div class="periods" role="group" aria-label="Reporting period">
+      <button data-period="day" aria-pressed="false">Today</button>
+      <button data-period="week" aria-pressed="true">Week</button>
+      <button data-period="month" aria-pressed="false">Month</button>
+      <button data-period="quarter" aria-pressed="false">Quarter</button>
+    </div>
+    <button class="btn btn-icon" id="theme-toggle" type="button" aria-label="Switch between light and dark" title="Switch theme"><span id="theme-icon" aria-hidden="true"></span></button>
+    <button class="btn" id="btn-import">Load my data</button>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="wrap tabs-in" role="tablist">
+    <button class="tab" role="tab" aria-selected="true"  data-screen="action">Action Center<span class="cnt" id="tab-count">0</span></button>
+    <button class="tab" role="tab" aria-selected="false" data-screen="members">Members</button>
+    <button class="tab" role="tab" aria-selected="false" data-screen="util">Utilization</button>
+    <button class="tab" role="tab" aria-selected="false" data-screen="growth">Growth</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; ACTION CENTER &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; -->
+  <section class="screen" id="screen-action" role="tabpanel" aria-label="Action Center">
+    <div class="narrative">
+      <div class="dt">
+        <span class="hello" id="nar-hello">&#8212;</span>
+        <span class="date" id="nar-date">&#8212;</span>
+      </div>
+      <p class="txt" id="nar-text">&#8212;</p>
+    </div>
+
+    <div class="grid kpis sec" id="kpis"></div>
+
+    <div class="sec sec-calls">
+      <div class="sec-h">
+        <h2>Your call list</h2>
+        <span class="sub" id="calls-sub">&#8212;</span>
+      </div>
+      <div class="calls" id="calls"></div>
+      <div style="margin-top:12px"><button class="btn" id="calls-more" hidden>Show the rest</button></div>
+      <p class="note" style="margin-top:12px">Risk is always measured over the last 14 days against each member's own normal, so this list does not change when you switch the period at the top. Everything else on the dashboard does.</p>
+    </div>
+
+    <div class="sec sec-onboard">
+      <div class="sec-h">
+        <h2>Never got started</h2>
+        <span class="sub">Joined in the last 90 days and never built a habit. Cheapest saves you have.</span>
+      </div>
+      <div class="calls" id="onboard"></div>
+    </div>
+
+    <div class="sec sec-wins">
+      <div class="sec-h">
+        <h2>Worth a word</h2>
+        <span class="sub">Members trending the right way. Two minutes of recognition buys a lot of loyalty.</span>
+      </div>
+      <div class="calls" id="wins"></div>
+    </div>
+  </section>
+
+  <!-- &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; MEMBERS &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; -->
+  <section class="screen" id="screen-members" role="tabpanel" aria-label="Members" hidden>
+    <div class="sec-h" style="margin-bottom:14px">
+      <h2>Member roster</h2>
+      <span class="sub" id="members-sub">&#8212;</span>
+    </div>
+    <div class="filters">
+      <input class="search" id="m-search" type="search" placeholder="Search members&#8230;" aria-label="Search members">
+      <button class="chip" data-mf="all"   aria-pressed="true">All</button>
+      <button class="chip" data-mf="red"   aria-pressed="false">At risk</button>
+      <button class="chip" data-mf="amber" aria-pressed="false">Slipping</button>
+      <button class="chip" data-mf="green" aria-pressed="false">Steady</button>
+      <button class="chip" data-mf="new"   aria-pressed="false">New</button>
+    </div>
+    <div class="tablewrap">
+      <table id="m-table">
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="name">Member</th>
+            <th class="sortable" data-sort="tier">Membership</th>
+            <th class="sortable r" data-sort="tenure">Tenure</th>
+            <th class="sortable r" data-sort="baseline">Normal</th>
+            <th class="sortable r" data-sort="current">Now</th>
+            <th class="r">Last 12 weeks</th>
+            <th class="sortable r" data-sort="last">Last scan</th>
+            <th class="sortable" data-sort="risk">Status</th>
+            <th class="sortable r" data-sort="ltv">Paid to date</th>
+          </tr>
+        </thead>
+        <tbody id="m-body"></tbody>
+      </table>
+    </div>
+    <p class="note" style="margin-top:12px"><b>Normal</b> is each member's own median visits per week over the 8 weeks before last, not a gym-wide average. <b>Now</b> is their average over the last 14 days. Comparing a member only to themselves is what separates a real churn signal from noise.</p>
+  </section>
+
+  <!-- &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; UTILIZATION &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; -->
+  <section class="screen" id="screen-util" role="tabpanel" aria-label="Utilization" hidden>
+    <div class="sec-h" style="margin-bottom:14px">
+      <h2>Floor utilization</h2>
+      <span class="sub" id="util-sub">&#8212;</span>
+    </div>
+
+    <div class="grid kpis" id="util-kpis"></div>
+
+    <div class="card sec">
+      <div class="card-h">
+        <h3>When the gym is actually full</h3>
+        <span class="sub">Door scans by day and hour. Red underline = a class runs then.</span>
+      </div>
+      <div class="card-b">
+        <div style="overflow-x:auto"><div class="heat" id="heat"></div></div>
+        <div class="legend" style="margin-top:14px">
+          <span>Quieter</span>
+          <span class="sw" id="heat-legend"></span>
+          <span>Busier</span>
+          <span style="margin-left:14px; display:inline-flex; align-items:center; gap:6px">
+            <i style="width:16px;height:2px;background:var(--brand);display:block"></i> class time
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card sec">
+      <div class="card-h">
+        <h3>An average day</h3>
+        <span class="sub" id="curve-sub">&#8212;</span>
+      </div>
+      <div class="card-b"><div id="curve"></div></div>
+    </div>
+
+    <div class="card sec">
+      <div class="card-h">
+        <h3>Class attendance</h3>
+        <span class="sub">Scans within 20 minutes of a class start. A door scan cannot tell a class from an open-gym session, and 20 is an assumed cap.</span>
+      </div>
+      <div class="card-b"><div class="tablewrap" style="border:0"><table id="class-table" style="min-width:600px"></table></div></div>
+    </div>
+
+    <div class="sec">
+      <div class="card">
+        <div class="card-h"><h3>What this means for the schedule</h3></div>
+        <div class="card-b"><div id="util-reco" class="note" style="font-size:13px; line-height:1.75"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; GROWTH &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; -->
+  <section class="screen" id="screen-growth" role="tabpanel" aria-label="Growth" hidden>
+    <div class="sec-h" style="margin-bottom:14px">
+      <h2>Business health</h2>
+      <span class="sub" id="growth-sub">&#8212;</span>
+    </div>
+
+    <div class="grid kpis" id="growth-kpis"></div>
+
+    <div class="grid sec" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+      <div class="card">
+        <div class="card-h"><h3>Members</h3><span class="sub">Active at each month end</span></div>
+        <div class="card-b"><div id="chart-members"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>Monthly recurring revenue</h3><span class="sub">Sum of active memberships</span></div>
+        <div class="card-b"><div id="chart-mrr"></div></div>
+      </div>
+    </div>
+
+    <div class="grid sec" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+      <div class="card">
+        <div class="card-h"><h3>Joins and cancellations</h3><span class="sub">Per month</span></div>
+        <div class="card-b"><div id="chart-flow"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>Do new members stick?</h3><span class="sub">% still active, by month since joining</span></div>
+        <div class="card-b"><div id="chart-survival"></div></div>
+      </div>
+    </div>
+
+    <div class="card sec">
+      <div class="card-h"><h3>Where you stand</h3><span class="sub">Against the Two-Brain benchmarks most gym owners are measured on</span></div>
+      <div class="card-b"><div class="grid" id="benchmarks" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:20px"></div></div>
+    </div>
+
+    <div class="card sec">
+      <div class="card-h"><h3>The first month predicts everything</h3></div>
+      <div class="card-b"><div id="first30"></div></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; MEMBER DRAWER &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; -->
+<div class="drawer" id="drawer">
+  <div class="drawer-p" role="dialog" aria-modal="true" aria-label="Member detail">
+    <button class="btn btn-sm drawer-x" id="drawer-x">Close</button>
+    <div id="drawer-body"></div>
+  </div>
+</div>
+
+<!-- &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; IMPORT DRAWER &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; -->
+<div class="drawer" id="importer">
+  <div class="drawer-p" role="dialog" aria-modal="true" aria-label="Load your data">
+    <button class="btn btn-sm drawer-x" id="import-x">Close</button>
+    <h2 style="font-size:20px; margin-bottom:8px">Load your own data</h2>
+    <p class="note" style="margin-bottom:18px">Drop your Mindbody client export and your door-scan log. Everything is parsed and calculated <b>inside this browser tab</b> &#8212; no file is uploaded anywhere, and closing the tab wipes it. Your members' names never leave your laptop.</p>
+
+    <div class="sec" style="margin-top:0">
+      <div class="eyebrow" style="margin-bottom:8px">1 &#183; Members</div>
+      <div class="dropzone" id="dz-members">
+        Drop a Mindbody client export here, or <label style="color:var(--brand); cursor:pointer; text-decoration:underline">browse<input type="file" id="f-members" accept=".csv,text/csv" hidden></label>
+        <div class="note" style="margin-top:8px">Needs: a name, a join date, and a membership or rate column.</div>
+      </div>
+      <div id="dz-members-out" class="note" style="margin-top:8px"></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow" style="margin-bottom:8px">2 &#183; Door scans</div>
+      <div class="dropzone" id="dz-scans">
+        Drop your access-control scan log here, or <label style="color:var(--brand); cursor:pointer; text-decoration:underline">browse<input type="file" id="f-scans" accept=".csv,text/csv" hidden></label>
+        <div class="note" style="margin-top:8px">Needs: a member identifier and a scan timestamp. One row per entry.</div>
+      </div>
+      <div id="dz-scans-out" class="note" style="margin-top:8px"></div>
+    </div>
+
+    <div class="sec" id="mapping" hidden>
+      <div class="eyebrow" style="margin-bottom:10px">3 &#183; Match up the columns</div>
+      <div id="mapping-body" class="grid" style="gap:12px"></div>
+      <div style="display:flex; gap:9px; margin-top:18px; flex-wrap:wrap">
+        <button class="btn btn-primary" id="do-import">Rebuild dashboard</button>
+        <button class="btn" id="reset-demo">Back to demo data</button>
+      </div>
+      <p class="note" style="margin-top:12px" id="import-warn"></p>
+    </div>
+
+    <div class="sec">
+      <p class="note">Not sure what to export? In Mindbody: <b>Reports &#8594; Clients &#8594; Client List</b> (export CSV) and <b>Reports &#8594; Attendance &#8594; Sign-In Sheet</b> or your door system's raw entry log for the last 6+ months. Six months of scans is the minimum for baselines to mean anything; twelve is better.</p>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tip" role="status"></div>
+
+<script>
+const LOGO_SRC = "data:image/webp;base64,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";
+</script>
+
+<script>
+/* ============================================================================
+   EVSC MEMBER INTELLIGENCE
+   Layer 1 \u2014 DATA
+   A seeded simulation of a 24-hour strength gym. Fixed seed, so the numbers
+   are identical on every load, but the history is generated backwards from
+   today's real date so the dashboard always reads as current.
+   Nothing below is hardcoded output: every figure on screen is computed from
+   this event stream by the engine in layer 2.
+   ========================================================================= */
+
+const DAY = 86400000, WEEK = 7 * DAY;
+
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+let R = mulberry32(20090614);              // ESTD 2009
+const rnd   = () => R();
+const rint  = (a, b) => a + Math.floor(R() * (b - a + 1));
+const rf    = (a, b) => a + R() * (b - a);
+const pick  = arr => arr[Math.floor(R() * arr.length)];
+const chance= p => R() < p;
+function shuffle(a){ a = a.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+const startOfDay = d => { const x = new Date(d); x.setHours(0,0,0,0); return x.getTime(); };
+const TODAY      = startOfDay(new Date());
+const MONTHS_BACK = 20;
+
+const FIRST = ["Marcus","Danielle","Tyler","Priya","Jordan","Alexis","Brett","Camila","Devon","Erin","Gabe","Hannah","Isaac","Jenna","Kyle","Lauren","Miguel","Nina","Owen","Paige","Quinn","Rachel","Sam","Tara","Victor","Whitney","Xavier","Yasmin","Zach","Aaron","Bianca","Caleb","Delia","Eli","Fiona","Grant","Heather","Ivan","Jasmine","Keith","Leah","Mason","Natalie","Omar","Peter","Rosa","Shane","Tessa","Trevor","Ursula","Vince","Wendy","Adam","Brooke","Carlos","Dana","Ethan","Faith","Gina","Hugo","Iris","Jared","Kara","Logan","Maya","Nolan","Olivia","Pablo","Renee","Seth","Talia","Wes","Amber","Blake","Chase","Drew","Elena","Felix","Gwen","Hector","Imani","Jonah","Kendra"];
+const LAST  = ["Reyes","Whitcomb","Nakamura","Delgado","Fischer","Okafor","Brennan","Vasquez","Holloway","Sandoval","Ferreira","Lindqvist","Marchetti","Ochoa","Pruitt","Quintero","Rasmussen","Sarkisian","Tremblay","Underwood","Villanueva","Wojcik","Ybarra","Zimmerman","Ashford","Barrera","Castellano","Dunleavy","Espinoza","Fontaine","Grimaldi","Halvorsen","Ingram","Jankowski","Kowalczyk","Lachance","Mendoza","Novotny","Ostrowski","Paredes","Rinaldi","Salcedo","Thibodeaux","Vanterpool","Westbrook","Yamada","Abernathy","Bouchard","Cardenas","Dombrowski","Escalante","Fairbanks","Guerrero","Hutchinson"];
+
+
+/* Class schedule scraped from the EVSC booking widget: 5:30a, 6:30a, 8a, 10a,
+   12p, 3p, 5:30p, 6:30p, 7p weekdays; 8a and 10a Saturday. */
+const CLASSES = [
+  {name:'CrossFit',     days:[1,2,3,4,5], h:5,  m:30},
+  {name:'CrossFit',     days:[1,2,3,4,5], h:6,  m:30},
+  {name:'Bootcamp',     days:[1,2,3,4,5], h:8,  m:0 },
+  {name:'CrossFit',     days:[1,2,3,4,5], h:10, m:0 },
+  {name:'CrossFit',     days:[1,2,3,4,5], h:12, m:0 },
+  {name:'Bodybuilding', days:[1,2,3,4,5], h:15, m:0 },
+  {name:'CrossFit',     days:[1,2,3,4,5], h:17, m:30},
+  {name:'CrossFit',     days:[1,2,3,4,5], h:18, m:30},
+  {name:'Bootcamp',     days:[1,2,3,4,5], h:19, m:0 },
+  {name:'CrossFit',     days:[6],         h:8,  m:0 },
+  {name:'Bootcamp',     days:[6],         h:10, m:0 }
+];
+const CLASS_KEYS = new Set(CLASSES.flatMap(c => c.days.map(d => `${d}-${c.h}`)));
+
+const WD = [1,2,3,4,5];
+const spread = (days, times) => days.flatMap(d => times.map(t => [d, t[0], t[1]]));
+
+/* EVSC is an open-gym floor first and a class gym second: most members buy
+   24-hour access and train on their own, a minority are on group memberships,
+   and a small group has August writing their programming.
+     cls   - trains in a coached class, so a named coach makes sense
+     label - third person, used in the "why"
+     you   - second person, used in the suggested message
+     crew  - the group they belong to, or null if they train alone           */
+const ARCH = [
+  {id:'dawn',      cls:true,  w:.05, label:'the 5:30 a.m. class',    you:'the 5:30 a.m. class',   crew:'5:30 a.m.',
+   slots: spread(WD,[[5,30]]),                                                       target:[3.4,4.7]},
+  {id:'am',        cls:true,  w:.05, label:'the 6:30 a.m. class',    you:'the 6:30 a.m. class',   crew:'6:30 a.m.',
+   slots: spread(WD,[[6,30]]),                                                       target:[3.0,4.3]},
+  {id:'earlyriser',cls:false, w:.09, label:'the early mornings',     you:'your morning sessions', crew:null,
+   slots: spread(WD,[[5,45],[7,0],[8,0]]),                                           target:[2.6,3.9]},
+  {id:'midmorning',cls:true,  w:.025, label:'the 10 a.m. class',      you:'the 10 a.m. class',     crew:'10 a.m.',
+   slots: spread(WD,[[10,0],[10,0],[9,15]]),                                         target:[2.2,3.4]},
+  {id:'midday',    cls:true,  w:.035, label:'the noon class',         you:'the noon class',        crew:'noon',
+   slots: spread(WD,[[12,0]]),                                                       target:[2.4,3.6]},
+  {id:'daytime',   cls:false, w:.12, label:'the daytime hours',      you:'your daytime sessions', crew:null,
+   slots: spread(WD,[[11,0],[13,30],[15,0],[15,0],[16,15]]),                          target:[2.4,3.7]},
+  {id:'pm530',     cls:true,  w:.06, label:'the 5:30 p.m. class',    you:'the 5:30 p.m. class',   crew:'5:30 p.m.',
+   slots: spread(WD,[[17,30]]),                                                      target:[3.0,4.5]},
+  {id:'pm630',     cls:true,  w:.045, label:'the 6:30 p.m. class',    you:'the 6:30 p.m. class',   crew:'6:30 p.m.',
+   slots: spread(WD,[[18,30]]),                                                      target:[2.6,4.0]},
+  {id:'openpm',    cls:false, w:.21, label:'evening open gym',       you:'your evening lifts',    crew:null,
+   slots: spread([1,2,3,4,5,6],[[17,0],[19,15],[20,0],[20,45]]),                      target:[2.4,4.0]},
+  {id:'weekend',   cls:false, w:.075, label:'weekend mornings',       you:'weekend mornings',      crew:null,
+   slots: [[6,8,0],[6,8,0],[6,10,0],[6,10,30],[0,9,0],[0,10,30],[2,18,0],[4,18,0]],  target:[1.5,2.6]},
+  {id:'nightowl',  cls:false, w:.11, label:'the late-night hours',   you:'your late-night sessions', crew:null,
+   slots: spread([1,2,3,4,5,6],[[21,30],[22,15]]).concat(spread(WD,[[4,30]])),        target:[2.4,3.7]},
+  {id:'pt',        cls:true,  w:.02, label:'their PT sessions',      you:'your PT sessions',      crew:null,
+   slots: [[1,9,0],[3,9,0],[5,9,0],[2,14,0],[4,14,0],[1,16,0],[3,16,0]],             target:[1.7,2.4]},
+  {id:'sporadic',  cls:false, w:.105, label:'open gym',               you:'the gym',               crew:null,
+   slots: spread([0,1,2,3,4,5,6],[[7,0],[11,0],[13,30],[16,0],[18,0],[20,0]]),        target:[0.9,2.0]}
+];
+
+/* Coaches only exist where someone is actually coached. */
+const CLASS_COACH = {
+  dawn:'Sam', am:'Chris', midmorning:'Paige', midday:'Charlie',
+  pm530:'Becky', pm630:'Andrew', pt:'Rachel'
+};
+
+const TIERS = {
+  'Open Gym 24/7':    99,
+  'Group 3x/week':   149,
+  'Group Unlimited': 179,
+  'Group + Open Gym':199,
+  'Personal Training':425
+};
+let RATES = Object.assign({}, TIERS);   // editable on the Growth screen
+
+/* Phoenix reality: nobody trains in July. January is a stampede. */
+const SEASON = [1.14, 1.07, 1.03, 1.00, 0.97, 0.88, 0.82, 0.90, 1.00, 1.02, 0.98, 0.87];
+
+const ARCH_TOTAL = ARCH.reduce((s, a) => s + a.w, 0);
+function pickArch(){
+  let r = rnd() * ARCH_TOTAL, acc = 0;
+  for (const a of ARCH){ acc += a.w; if (r <= acc) return a; }
+  return ARCH[ARCH.length - 1];
+}
+
+const GROUP_TIERS = ['Group Unlimited', 'Group 3x/week', 'Group + Open Gym'];
+const OPEN_TIERS   = ['Open Gym 24/7', 'Open Gym 24/7', 'Open Gym 24/7', 'Open Gym 24/7', 'Group + Open Gym'];
+
+function makeMember(joinMs, id){
+  const a = pickArch();
+  const first = pick(FIRST), last = pick(LAST);
+  const tier = a.id === 'pt' ? 'Personal Training' : pick(a.cls ? GROUP_TIERS : OPEN_TIERS);
+  // Most of the floor trains alone. August writes programming for a slice of
+  // them, and that is a relationship he'd want surfaced when they go quiet.
+  const coach = a.cls ? CLASS_COACH[a.id] : null;
+  const programmed = !coach && chance(.16);
+  return {
+    id, first, last,
+    name: first + ' ' + last,
+    initials: first[0] + last[0],
+    arch: a.id, archLabel: a.label, crew: a.crew, you: a.you, slots: a.slots,
+    coach: coach || null, programmed,
+    tier, rate: TIERS[tier],
+    join: joinMs, cancel: null,
+    baseTarget: rf(a.target[0], a.target[1]),
+    traj: 'steady', trajWeeks: 0, trajFloor: 1,
+    sticky: chance(.72),
+    scans: []
+  };
+}
+
+function assignTrajectory(m, isChurning){
+  const r = rnd();
+  if (isChurning){
+    // people who quit almost always go quiet first
+    if (r < .55){ m.traj = 'fader'; m.trajWeeks = rint(5, 13); m.trajFloor = rf(.05, .3); }
+    else        { m.traj = 'cliff'; m.trajWeeks = rint(2, 6); }
+    return;
+  }
+  if (r < .55) m.traj = 'steady';
+  else if (r < .68){ m.traj = 'ramper'; m.trajWeeks = rint(5, 12); }
+  else if (r < .81){ m.traj = 'fader';  m.trajWeeks = rint(4, 12); m.trajFloor = rf(.15, .5); }
+  else if (r < .87){ m.traj = 'cliff';  m.trajWeeks = rint(2, 5); }
+  else if (r < .94){ m.traj = 'returner'; m.trajWeeks = rint(6, 11); }
+  else m.traj = 'erratic';
+}
+
+function trajMult(m, weeksFromEnd){
+  const k = m.trajWeeks;
+  switch (m.traj){
+    case 'fader':   return weeksFromEnd < k ? m.trajFloor + (1 - m.trajFloor) * (weeksFromEnd / k) : 1;
+    case 'cliff':   return weeksFromEnd < k ? 0 : 1;
+    case 'ramper':  return weeksFromEnd < k ? 1 + .45 * (1 - weeksFromEnd / k) : 1;
+    case 'returner':return weeksFromEnd < 3 ? 1.05 : (weeksFromEnd < k ? .3 : 1);
+    case 'erratic': return rf(.35, 1.6);
+    default:        return 1;
+  }
+}
+
+function genScans(m, scanStart){
+  const endRef = m.cancel || TODAY;
+  const stop   = m.cancel ? Math.max(m.join, m.cancel - rint(2, 26) * DAY) : TODAY;
+  let t = Math.max(m.join, scanStart);
+  t = t - ((new Date(t).getDay() + 6) % 7) * DAY;          // back to Monday
+
+  for (; t <= stop; t += WEEK){
+    const wfe = Math.round((endRef - t) / WEEK);
+    const wsj = Math.round((t - m.join) / WEEK);
+    let mult = SEASON[new Date(t).getMonth()] * trajMult(m, wfe);
+
+    // onboarding arc: keen for a fortnight, then it either sticks or it doesn't
+    if (wsj < 2) mult *= 1.15;
+    else if (wsj < 14 && !m.sticky) mult *= Math.max(.1, 1 - (wsj - 2) / 13);
+
+    let n = Math.round(m.baseTarget * mult * rf(.72, 1.28));
+    n = Math.max(0, Math.min(6, n));
+    if (n === 0) continue;
+
+    for (const s of shuffle(m.slots).slice(0, n)){
+      const [dow, h, mi] = s;
+      const d = new Date(t + ((dow + 6) % 7) * DAY);
+      d.setHours(h, Math.max(0, mi + rint(-9, 14)), 0, 0);
+      const ts = d.getTime();
+      if (ts >= Math.max(m.join, scanStart) && ts <= Math.min(stop + DAY, TODAY + DAY)) m.scans.push(ts);
+    }
+  }
+  m.scans.sort((a, b) => a - b);
+}
+
+function buildDemoData(){
+  R = mulberry32(20090614);
+  const members = [];
+  let id = 1;
+
+  const simStart = new Date(TODAY); simStart.setDate(1);
+  simStart.setMonth(simStart.getMonth() - MONTHS_BACK);
+  const SIM_START = simStart.getTime();
+  const SCAN_START = SIM_START;
+
+  // Seed the roster that already existed 15 months ago
+  for (let i = 0; i < 160; i++){
+    const monthsAgo = Math.floor(Math.pow(rnd(), 1.7) * 58) + 1;   // most are newish, a tail are veterans
+    const j = new Date(SIM_START); j.setMonth(j.getMonth() - monthsAgo); j.setDate(rint(1, 28));
+    members.push(makeMember(j.getTime(), id++));
+  }
+
+  // Month by month: who joins, who leaves
+  const cursor = new Date(SIM_START);
+  for (let mo = 0; mo <= MONTHS_BACK; mo++){
+    const monthStart = new Date(cursor); monthStart.setMonth(monthStart.getMonth() + mo);
+    const monthEnd   = new Date(monthStart); monthEnd.setMonth(monthEnd.getMonth() + 1);
+    if (monthStart.getTime() > TODAY) break;
+    const mi = monthStart.getMonth();
+
+    const active = members.filter(m => !m.cancel && m.join < monthStart.getTime());
+    const churnRate = (mi === 5 || mi === 6 || mi === 7) ? rf(.055, .075) : rf(.030, .050);
+    let nCancel = Math.round(active.length * churnRate);
+
+    // The retention cliff is real, so short tenure carries a much higher hazard,
+    // but long-standing members do leave too. Sample proportional to that hazard
+    // rather than simply taking the newest members first.
+    const hazard = m => { const t = (monthStart - m.join) / DAY;
+      return t < 120 ? 5 : t < 400 ? 2.2 : t < 900 ? 1 : 0.55; };
+    const pool = active.slice();
+    const w = pool.map(hazard);
+    for (let k = 0; k < nCancel && pool.length; k++){
+      let total = w.reduce((a, b) => a + b, 0), r = rnd() * total, idx = 0;
+      while (idx < pool.length - 1 && (r -= w[idx]) > 0) idx++;
+      const m = pool[idx];
+      const c = new Date(monthStart); c.setDate(rint(1, 27));
+      m.cancel = c.getTime();
+      assignTrajectory(m, true);
+      pool.splice(idx, 1); w.splice(idx, 1);
+    }
+
+    const joins = (mi === 0) ? rint(19, 25) : (mi === 8) ? rint(14, 19) : (mi === 6) ? rint(6, 10) : rint(10, 16);
+    for (let k = 0; k < joins; k++){
+      const j = new Date(monthStart); j.setDate(rint(1, 28));
+      if (j.getTime() > TODAY) continue;
+      members.push(makeMember(j.getTime(), id++));
+    }
+  }
+
+  for (const m of members){ if (!m.cancel) assignTrajectory(m, false); }
+  for (const m of members) genScans(m, SCAN_START);
+
+  // Someone who signed up and never really showed is a different problem
+  // from someone who quit \u2014 keep a few of each so both lists have teeth.
+  return { members, scanStart: SCAN_START, simStart: SIM_START, coverage: SIM_START, source: 'demo' };
+}
+</script>
+
+<script>
+/* ============================================================================
+   Layer 2 \u2014 ENGINE
+   Pure functions over {members, scans}. Has no idea whether the data came
+   from the demo generator or a CSV the owner dropped in.
+   ========================================================================= */
+
+const WEEKS_BASELINE = 8;      // weeks 3\u201310 back form the personal baseline
+const BASELINE_SKIP  = 2;      // the last 2 weeks are what we're testing
+const GHOST_DAYS     = 14;
+const CAPACITY       = 42;     // concurrent bodies the floor holds comfortably
+const CLASS_CAP      = 20;
+
+const fmtInt   = n => Math.round(n).toLocaleString('en-US');
+const fmtMoney = n => '$' + Math.round(n).toLocaleString('en-US');
+const fmt1     = n => (Math.round(n * 10) / 10).toFixed(1);
+const fmtV     = n => (Math.round(n * 10) / 10).toFixed(1).replace(/\.0$/, '');   // prose form
+const monthsBetween = (a, b) => (b - a) / (DAY * 30.44);
+const dowOf  = ts => new Date(ts).getDay();
+const hourOf = ts => new Date(ts).getHours();
+
+function weekBuckets(scans, weeks){
+  const out = new Array(weeks).fill(0);
+  for (const t of scans){
+    const i = Math.floor((TODAY + DAY - t) / WEEK);
+    if (i >= 0 && i < weeks) out[i]++;
+  }
+  return out;                                  // index 0 = the last 7 days
+}
+function median(a){
+  if (!a.length) return 0;
+  const s = a.slice().sort((x, y) => x - y), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+function longestPriorGap(scans){
+  let g = 0;
+  for (let i = 1; i < scans.length; i++) g = Math.max(g, (scans[i] - scans[i - 1]) / DAY);
+  return g;
+}
+
+/* ---------------------------------------------------------------- members */
+/* A member's own rate wins when their file supplied one; RATES is the per-tier
+   default used for everyone else, and it is what the Growth screen edits. */
+const rateOf = m => (m.rateFixed != null && m.rateFixed > 0) ? m.rateFixed
+                  : (RATES[m.tier] != null ? RATES[m.tier] : (m.rate || 0));
+
+function analyzeMember(m){
+  // A cancellation dated in the future is a scheduled cancellation: the member
+  // is still training and still paying, so they stay in the active roster.
+  const joined  = m.join <= TODAY;
+  const endedAt = (m.cancel && m.cancel <= TODAY) ? m.cancel : null;
+  const active  = joined && !endedAt;
+
+  const wk     = weekBuckets(m.scans, 26);
+  const past   = m.scans.filter(t => t <= TODAY + DAY);
+  const last   = past.length ? past[past.length - 1] : null;
+  const daysSince = last === null ? Infinity : Math.max(0, Math.floor((TODAY + DAY - last) / DAY));
+  const endRef = endedAt || TODAY;
+  const tenureDays = Math.max(0, Math.floor((endRef - m.join) / DAY));
+  const tenureMo   = Math.max(0, monthsBetween(m.join, endRef));
+
+  const baseline = median(wk.slice(BASELINE_SKIP, BASELINE_SKIP + WEEKS_BASELINE));
+  const current  = (wk[0] + wk[1]) / 2;
+  const drop     = baseline > 0 ? Math.max(0, Math.min(1, (baseline - current) / baseline)) : 0;
+  const priorGap = longestPriorGap(past);
+
+  let risk = 'green';
+  if (!active)                      risk = 'gone';
+  else if (tenureDays < 75)         risk = 'new';
+  else if (baseline < 0.5)          risk = 'low';
+  else if (daysSince >= GHOST_DAYS && baseline >= 1) risk = 'red';
+  else if (drop >= .6 && daysSince >= 4) risk = 'red';
+  else if (drop >= .38)             risk = 'amber';
+  else if (daysSince >= 8 && baseline >= 2.5) risk = 'amber';
+
+  const rate   = rateOf(m);
+  const riskW  = risk === 'red' ? 3 : risk === 'amber' ? 1.6 : risk === 'low' ? .7 : 0;
+  const tenW   = .8 + Math.min(tenureMo, 36) / 36 * .8;
+  const score  = riskW * (rate / 150) * tenW * (1 + drop);
+  const paid   = Math.max(1, Math.round(tenureMo)) * rate;
+
+  return Object.assign({}, m, {
+    active, endedAt, wk, last, daysSince, tenureDays, tenureMo,
+    baseline, current, drop, priorGap, risk, score, paid, rate
+  });
+}
+
+/* One predicate for the badge, the KPI, the at-risk revenue and the call list,
+   so those four numbers can never disagree. */
+const NEEDS_CALL = m => m.risk === 'red' || m.risk === 'amber' || m.risk === 'low';
+
+/* ------------------------------------------------- why + what to say ---- */
+/* Tenure reads badly in raw months once you get past a year or so. */
+function tenureText(mo){
+  if (mo < 1.5) return 'a few weeks';
+  if (mo < 18)  return Math.round(mo) + ' months';
+  const y = Math.round(mo / 6) / 2;
+  return (y % 1 === 0 ? y : y.toFixed(1)) + ' years';
+}
+function tenureShort(mo){
+  return mo < 18 ? Math.round(mo) + ' mo' : (Math.round(mo / 6) / 2) + ' yr';
+}
+/* Variants are chosen by member id, so the same person always gets the same
+   wording, but no two cards on screen read identically. */
+const vary = (a, arr) => {
+  // Mixing in tenure spreads variants across members who sit next to each other
+  // in the ranked list; a plain id modulo let neighbours collide.
+  const h = Math.abs((a.id * 2654435761) ^ (Math.round(a.tenureDays || 0) * 40503));
+  return arr[h % arr.length];
+};
+
+function reasonFor(a){
+  const b = fmtV(a.baseline), c = fmtV(a.current), ten = tenureText(a.tenureMo);
+  const pct = Math.round(a.drop * 100);
+  const beatsRecord = a.daysSince > a.priorGap + 1 && a.priorGap > 0;
+
+  if (a.risk === 'red' && a.daysSince >= GHOST_DAYS){
+    const tail = beatsRecord
+      ? `their longest gap in ${ten} here`
+      : `after ${ten} of showing up`;
+    return vary(a, [
+      `A <b>${b}-a-week</b> regular at ${a.archLabel}. Nothing for <b>${a.daysSince} days</b>, ${tail}.`,
+      `Was in <b>${b} times a week</b> at ${a.archLabel} and has not scanned in <b>${a.daysSince} days</b>, ${tail}.`,
+      `<b>${a.daysSince} days</b> without a scan. Before that, ${b} visits a week at ${a.archLabel}, ${tail}.`
+    ]);
+  }
+  if (a.risk === 'red'){
+    return vary(a, [
+      `Down from <b>${b} to ${c} visits a week</b>, a ${pct}% drop, last seen ${a.daysSince} days ago. ${ten} in.`,
+      `Was at <b>${b} a week</b>, now <b>${c}</b>. That is ${pct}% off their own normal after ${ten}.`,
+      `Cut their training by ${pct}% over the last fortnight, from ${b} down to ${c} a week. ${ten} as a member.`
+    ]);
+  }
+  if (a.risk === 'amber' && a.daysSince >= 7){
+    return vary(a, [
+      `A ${b}-a-week fixture at ${a.archLabel}, but nothing for <b>${a.daysSince} days</b>. First week they have missed in a while.`,
+      `<b>${a.daysSince} days</b> quiet. Not alarming yet, but ${a.archLabel} is usually a ${b}-a-week habit for them.`,
+      `Missed a full week at ${a.archLabel} after ${ten} of ${b} visits a week. Worth a nudge before it becomes two.`
+    ]);
+  }
+  if (a.risk === 'amber'){
+    return vary(a, [
+      `Slipping from <b>${b} to ${c} a week</b>. Not gone, but the trend is the wrong way.`,
+      `Down about ${pct}% on their own normal over the last fortnight, ${b} a week to ${c}.`,
+      `Quietly training less: <b>${b} a week</b> was the pattern, <b>${c}</b> is the last two weeks.`
+    ]);
+  }
+  if (a.risk === 'low'){
+    return vary(a, [
+      `Under a visit a week, and has been for months. Paying ${fmtMoney(a.rate)} for something they barely touch, which makes that renewal fragile.`,
+      `Averages ${b} visits a week on a ${fmtMoney(a.rate)} membership. People cancel what they do not use.`,
+      `${ten} as a member and still under a visit a week. The value is not landing, and the price is.`
+    ]);
+  }
+  return '';
+}
+
+/* August is the one sending these, so he never refers to himself in the third
+   person, and members who train alone get no coach name at all. */
+function messageFor(a){
+  const f = a.first, spot = a.you || a.archLabel;
+  const coach = a.coach;
+  const nudge = coach ? ` Coach ${coach} was asking after you.`
+              : a.programmed ? ` I've got your next block written whenever you want it.`
+              : '';
+  const offer = coach ? `Coach ${coach}`
+              : a.programmed ? `me`
+              : `one of the coaches`;
+  if (a.risk === 'red' && a.daysSince >= GHOST_DAYS)
+    return vary(a, [
+      `Hey ${f}, haven't seen you at ${spot} in a couple of weeks and that's not like you. Everything alright?` + nudge,
+      `${f}, you've been off the radar a couple of weeks now. No pressure, just checking you're okay.` + (a.crew ? ` The ${a.crew} crew has been asking.` : nudge),
+      `Hey ${f}, noticed you've been out for a bit. If something's come up, tell me and we'll work around it. If it's just been a rough couple of weeks, come in Monday and we'll ease you back.`,
+      `${f}, you've been a fixture at ${spot} for a long time and it's quiet in here without you. Everything good? Give me a shout either way.`,
+    ]);
+  if (a.risk === 'red')
+    return vary(a, [
+      `Hey ${f}, you've been in a lot less than usual lately. If the schedule stopped working, tell me what does and I'll get you into a time that fits. I'd rather not lose you over a calendar problem.`,
+      `${f}, noticed your training's dropped off this month. Anything I can help with? Happy to find you a time that fits better, or sit down and reset the plan.`,
+      `Hey ${f}, you've gone from a few times a week to barely getting in. What changed? If it's the schedule we can fix that, and if you just need a plan to follow, ${offer} can sort you out.`
+    ]);
+  if (a.risk === 'amber' && a.daysSince >= 7)
+    return vary(a, [
+      `${f}, missed you this week at ${spot}. Everything good?` + (coach ? ` Coach ${coach} has something planned Thursday you'd like.` : a.programmed ? ` Your next session is written and waiting.` : ''),
+      `Hey ${f}, no sign of you this week. Just checking in. Same time Monday?`,
+      `${f}, you were missed at ${spot} this week. All good on your end? Door's open.`
+    ]);
+  if (a.risk === 'amber')
+    return vary(a, [
+      `Hey ${f}, you've been in a bit less this month. Anything getting in the way? Happy to look at a different time if the hours you use are a squeeze.`,
+      `${f}, noticed the frequency has dipped a little. Nothing dramatic, just want to make sure the schedule still works for you.`,
+      `Hey ${f}, you've dropped a session or two a week lately. Want fifteen minutes with ${offer} to reset the plan?`
+    ]);
+  if (a.risk === 'low')
+    return vary(a, [
+      `Hey ${f}, you're on the ${a.tier} but only getting in here and there. Want to sit down for ten minutes and build a plan you'd actually keep? Or I can move you to a smaller plan that fits how you train. Either way I'd rather you stay.`,
+      `${f}, honest question: is the ${a.tier} the right fit? You're not using much of it. I'd rather put you on something that matches how you train than have you cancel in three months.`,
+      `Hey ${f}, you've been paying for more gym than you're using. Come see me and we'll either get you in more often or get you on a plan that makes sense.`
+    ]);
+  return '';
+}
+
+function onboardReason(a){
+  const wks = Math.max(1, Math.round(a.tenureDays / 7));
+  const total = a.scans.length;
+  const first30 = a.scans.filter(t => t < a.join + 30 * DAY).length;
+  if (total === 0)
+    return { why: `Signed up <b>${a.tenureDays} days ago</b> and has <b>never scanned in</b>. Paying ${fmtMoney(a.rate)} a month for a door they have not opened.`,
+             msg: vary(a, [
+               `Hey ${a.first}, welcome to EVSC, though I don't think we've actually met yet. Want me to walk you through the floor this week? Twenty minutes, no charge, and you'll know exactly where to start.`,
+               `${a.first}, you signed up a few weeks back and we haven't seen you yet. That first session is the hard one. Tell me a day that works and I'll meet you at the door.`
+             ]) };
+  return { why: `<b>${first30} visits</b> in their first month. The members who stay hit eight or more. ${wks} weeks in, ${total} visits total.`,
+           msg: vary(a, [
+             `Hey ${a.first}, you're ${wks} weeks in. How's it going so far? The members who end up loving this place pick two or three fixed days and stick to them. Want help locking yours in?`,
+             `${a.first}, ${wks} weeks in and I want to make sure you're set up properly. Ten minutes with ${a.coach ? 'Coach ' + a.coach : 'me'} this week and you'll have a plan instead of guesswork.`
+           ]) };
+}
+
+function winReason(a){
+  const b = fmtV(a.baseline), c = fmtV(a.current);
+  if (a.streak >= 3)
+    return { why: `<b>${a.streak} weeks straight</b> of three or more visits. ${tenureText(a.tenureMo)} in and still showing up.`,
+             msg: vary(a, [
+               `${a.first}, ${a.streak} weeks straight. Noticed, and it's the kind of consistency that makes this place what it is. Keep going.`,
+               `${a.first}, you haven't missed a week in ${a.streak}. That's the whole game. Nice work.`
+             ]) };
+  return { why: `Up from <b>${b} to ${c} visits a week</b>. Something clicked in the last month.`,
+           msg: vary(a, [
+             `${a.first}, you've picked it up noticeably in the last few weeks. Nice work. Anything you want to aim at? ${a.coach ? 'Coach ' + a.coach : 'We'} can build around it.`,
+             `${a.first}, big jump in your training lately and it shows. Want to put a goal on it?`
+           ]) };
+}
+
+/* ------------------------------------------------------------- periods -- */
+const PERIODS = {
+  day:     { days: 1,  label: 'today',            long: 'Today' },
+  week:    { days: 7,  label: 'the last 7 days',  long: 'This week' },
+  month:   { days: 30, label: 'the last 30 days', long: 'This month' },
+  quarter: { days: 90, label: 'the last 90 days', long: 'This quarter' }
+};
+function periodRange(p){
+  const d = PERIODS[p].days;
+  const end = TODAY + DAY;
+  return { from: end - d * DAY, to: end, prevFrom: end - 2 * d * DAY, prevTo: end - d * DAY, days: d };
+}
+
+/* -------------------------------------------------------- gym-wide ------ */
+function analyzeGym(data, period){
+  const all = data.members.map(analyzeMember);
+  const active = all.filter(m => m.active);
+  const r = periodRange(period);
+
+  for (const a of active){
+    let s = 0;
+    for (let i = 0; i < a.wk.length; i++){ if (a.wk[i] >= 3) s++; else break; }
+    a.streak = s;
+  }
+
+  const scansIn = (from, to) => {
+    let n = 0;
+    for (const m of all) for (const t of m.scans) if (t >= from && t < to) n++;
+    return n;
+  };
+  const visits = scansIn(r.from, r.to);
+  const visitsPrev = scansIn(r.prevFrom, r.prevTo);
+
+  const joined    = all.filter(m => m.join >= r.from && m.join < r.to).length;
+  const cancelled = all.filter(m => m.endedAt && m.endedAt >= r.from && m.endedAt < r.to).length;
+
+  const mrr = active.reduce((s, m) => s + m.rate, 0);
+  const arm = active.length ? mrr / active.length : 0;
+
+  const flagged = active.filter(NEEDS_CALL);
+  const atRiskRevenue = flagged.reduce((s, m) => s + m.rate, 0);
+
+  // Monthly history. Churn is measured against the cohort that was already a
+  // member at the start of the month: someone who joins and quits inside the
+  // same month is not in the denominator, and counting them in the numerator
+  // alone can push the rate past 100%.
+  const months = [];
+  const cur = new Date(TODAY); cur.setDate(1);
+  for (let i = 12; i >= 0; i--){
+    const sd = new Date(cur); sd.setMonth(sd.getMonth() - i);
+    const ed = new Date(sd);  ed.setMonth(ed.getMonth() + 1);
+    const S = sd.getTime(), E = Math.min(ed.getTime(), TODAY + DAY);
+
+    const activeEnd = all.filter(m => m.join < E && (!m.endedAt || m.endedAt >= E));
+    const cohort    = all.filter(m => m.join < S && (!m.endedAt || m.endedAt >= S));
+    const lost      = cohort.filter(m => m.endedAt && m.endedAt >= S && m.endedAt < E).length;
+    const j = all.filter(m => m.join >= S && m.join < E).length;
+    const c = all.filter(m => m.endedAt && m.endedAt >= S && m.endedAt < E).length;
+
+    months.push({
+      label: sd.toLocaleDateString('en-US', { month:'short' }),
+      full:  sd.toLocaleDateString('en-US', { month:'long', year:'numeric' }),
+      active: activeEnd.length,
+      mrr: activeEnd.reduce((x, m) => x + m.rate, 0),
+      joins: j, cancels: c,
+      churn: cohort.length ? lost / cohort.length * 100 : 0,
+      partial: ed.getTime() > TODAY + DAY
+    });
+  }
+
+  const recentGone = all.filter(m => m.endedAt && m.endedAt > TODAY - 365 * DAY);
+  const leg = recentGone.length ? recentGone.reduce((s, m) => s + monthsBetween(m.join, m.endedAt), 0) / recentGone.length : 0;
+  const avgTenure = active.length ? active.reduce((s, m) => s + m.tenureMo, 0) / active.length : 0;
+  const closed = months.slice(0, 12).filter(m => !m.partial);
+  const churnAvg = closed.length ? closed.reduce((s, m) => s + m.churn, 0) / closed.length : 0;
+
+  return {
+    all, active, range: r, period,
+    visits, visitsPrev, joined, cancelled, mrr, arm, leg, ltv: arm * leg,
+    avgTenure, churnAvg, months, flagged, atRiskRevenue,
+    netChange: joined - cancelled,
+    coverage: data.coverage || data.scanStart
+  };
+}
+
+/* ------------------------------------------------------- utilization ---- */
+const STAY_MIN = 70;                 // how long a session keeps someone on the floor
+const SLOT_MIN = 10, SLOTS = 24 * 60 / SLOT_MIN;
+
+function analyzeUtilization(g){
+  const { from, to } = g.range;
+  const grid = Array.from({length:7}, () => new Array(24).fill(0));
+  const dayCount = new Array(7).fill(0);
+  let calDays = 0;
+
+  for (let t = from; t < to; t += DAY){ dayCount[new Date(t).getDay()]++; calDays++; }
+
+  let total = 0;
+  const occSum = new Array(SLOTS).fill(0);
+  const stay = STAY_MIN / SLOT_MIN;
+
+  for (const m of g.all) for (const t of m.scans){
+    if (t < from || t >= to) continue;
+    const d = new Date(t);
+    grid[d.getDay()][d.getHours()]++;
+    total++;
+    // occupy the next 70 minutes
+    const s0 = Math.floor((d.getHours() * 60 + d.getMinutes()) / SLOT_MIN);
+    for (let k = 0; k < stay; k++){ const s = s0 + k; if (s < SLOTS) occSum[s]++; }
+  }
+
+  const avg = grid.map((row, d) => row.map(v => dayCount[d] ? v / dayCount[d] : 0));
+
+  // "An average day" gives each weekday equal weight, which is what you want
+  // when reading a schedule, so divide by the number of distinct weekdays seen.
+  const daysPresent = Math.max(1, dayCount.filter(c => c > 0).length);
+  const hourly = new Array(24).fill(0);
+  for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) hourly[h] += avg[d][h];
+  const hourlyAvg = hourly.map(v => v / daysPresent);
+
+  // Concurrency comes from the timestamps themselves rather than a fudge factor.
+  const occ = occSum.map(v => v / Math.max(1, calDays));
+  let maxOcc = 0, maxOccSlot = 0;
+  for (let i = 0; i < SLOTS; i++) if (occ[i] > maxOcc){ maxOcc = occ[i]; maxOccSlot = i; }
+
+  const empty = total === 0;
+  let peak = 0, peakH = 0, dead = Infinity, deadH = 0;
+  for (let h = 5; h < 23; h++){
+    if (hourlyAvg[h] > peak){ peak = hourlyAvg[h]; peakH = h; }
+    if (hourlyAvg[h] < dead){ dead = hourlyAvg[h]; deadH = h; }
+  }
+  if (empty){ peak = 0; dead = 0; }
+
+  // The single busiest weekday+hour cell, so "busiest stretch" names a real
+  // slot rather than pairing the busiest day with a separately-computed hour.
+  let peakCell = { d: 1, h: 18, v: 0 };
+  for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++)
+    if (avg[d][h] > peakCell.v) peakCell = { d, h, v: avg[d][h] };
+
+  let peakDay = 0, pdv = -1;
+  for (let d = 0; d < 7; d++){ const s = avg[d].reduce((a, b) => a + b, 0); if (s > pdv){ pdv = s; peakDay = d; } }
+
+  const share = (lo, hi) => {
+    let p = 0, a = 0;
+    for (let d = 1; d <= 5; d++) for (let h = 0; h < 24; h++){ a += avg[d][h]; if (h >= lo && h <= hi) p += avg[d][h]; }
+    return a ? p / a : 0;
+  };
+
+  // Each scan counts toward at most one class: the nearest eligible start.
+  // The 6:30pm and 7:00pm windows overlap, and double counting inflated both.
+  const starts = [];
+  CLASSES.forEach((c, i) => c.days.forEach(d => starts.push({ i, d, min: c.h * 60 + c.m })));
+  const heads = CLASSES.map(() => 0);
+  for (const m of g.all) for (const t of m.scans){
+    if (t < from || t >= to) continue;
+    const dt = new Date(t), dow = dt.getDay(), mins = dt.getHours() * 60 + dt.getMinutes();
+    let best = null, bestD = Infinity;
+    for (const st of starts){
+      if (st.d !== dow) continue;
+      const delta = mins - st.min;
+      if (delta < -22 || delta > 18) continue;
+      const dist = Math.abs(delta);
+      if (dist < bestD){ bestD = dist; best = st.i; }
+    }
+    if (best !== null) heads[best]++;
+  }
+  const classes = CLASSES.map((c, i) => {
+    const sessions = c.days.reduce((s, d) => s + dayCount[d], 0);
+    return { name: c.name, h: c.h, m: c.m, days: c.days,
+             time: fmtTime(c.h, c.m),
+             dayLabel: c.days.length > 1 ? 'Mon-Fri' : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][c.days[0]],
+             sessions, avg: sessions ? heads[i] / sessions : 0 };
+  }).sort((a, b) => (a.h * 60 + a.m) - (b.h * 60 + b.m));
+
+  const maxCell = Math.max(0, ...avg.flat());
+  return { grid, avg, dayCount, calDays, daysPresent, total, empty, hourlyAvg, occ,
+           peak, peakH, dead, deadH, peakDay, peakCell,
+           maxOcc, maxOccSlot, maxOccTime: fmtTime(Math.floor(maxOccSlot / 6), (maxOccSlot % 6) * 10),
+           inPeakWindow: share(16, 19), offPeak: share(9, 15), classes, maxCell };
+}
+
+function fmtTime(h, m){
+  const ap = h >= 12 ? 'p' : 'a';
+  let hh = h % 12; if (hh === 0) hh = 12;
+  return hh + (m ? ':' + String(m).padStart(2,'0') : '') + ap;
+}
+
+/* --------------------------------------------------------- lifecycle ---- */
+function analyzeLifecycle(g){
+  // One fixed cohort, so the curve can only ever go down: everybody who joined
+  // inside the observed window at least 12 months ago. Measuring a different
+  // cohort at each month is survivorship bias, and it makes the line rise.
+  const cohort = g.all.filter(m => m.join >= g.coverage && monthsBetween(m.join, TODAY) >= 12);
+  const survival = [];
+  for (let k = 0; k <= 12; k++){
+    const alive = cohort.filter(m => !m.endedAt || monthsBetween(m.join, m.endedAt) >= k).length;
+    survival.push({ k, pct: cohort.length ? alive / cohort.length * 100 : 0, n: cohort.length });
+  }
+
+  // Does the first 30 days predict survival to 6 months?
+  const buckets = [
+    { label: '0\u20133 visits',  lo: 0,  hi: 3 },
+    { label: '4\u20137 visits',  lo: 4,  hi: 7 },
+    { label: '8\u201311 visits', lo: 8,  hi: 11 },
+    { label: '12+ visits',  lo: 12, hi: 999 }
+  ].map(b => {
+    // Landmark at day 30: only members who were still here to accumulate a
+    // first-month record count, otherwise an early quit defines its own cause.
+    const c6 = g.all.filter(m => m.join >= g.coverage
+      && monthsBetween(m.join, TODAY) >= 6
+      && (!m.endedAt || m.endedAt >= m.join + 30 * DAY));
+    const inB = c6.filter(m => {
+      const v = m.scans.filter(t => t < m.join + 30 * DAY).length;
+      return v >= b.lo && v <= b.hi;
+    });
+    const alive = inB.filter(m => !m.endedAt || monthsBetween(m.join, m.endedAt) >= 6).length;
+    return { label: b.label, n: inB.length, pct: inB.length ? alive / inB.length * 100 : 0 };
+  });
+
+  return { survival, buckets, cohortN: cohort.length };
+}
+</script>
+
+<script>
+/* ============================================================================
+   Layer 3a \u2014 CHART PRIMITIVES
+   Hand-rolled inline SVG. No chart library: the artifact sandbox blocks
+   external scripts, and these five forms are all this dashboard needs.
+   Thin marks, recessive grid, one y-axis, hover on everything.
+   ========================================================================= */
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const TIP = () => document.getElementById('tip');
+
+function showTip(html, ev){
+  const t = TIP();
+  t.innerHTML = html;
+  t.style.opacity = 1;
+  const r = t.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY - r.height - 12;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y < 8) y = ev.clientY + 18;
+  t.style.left = x + 'px'; t.style.top = y + 'px';
+}
+function hideTip(){ TIP().style.opacity = 0; }
+
+
+/* Round a raw axis span up to a step a person would actually choose. */
+function niceStep(span, ticks){
+  const raw = span / ticks, mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+  const n = raw / mag;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
+}
+function niceBounds(min, max, ticks){
+  if (max === min) max = min + 1;
+  const step = niceStep(max - min, ticks);
+  return { lo: Math.floor(min / step) * step, hi: Math.ceil(max / step) * step, step };
+}
+
+/* ------------------------------------------------------------ sparkline - */
+function sparkline(vals, opts){
+  const o = Object.assign({ w:120, h:30, color:'var(--s1)', fill:true }, opts || {});
+  if (vals.length < 2) return '';
+  const max = Math.max(1, ...vals), n = vals.length;
+  const x = i => (i / (n - 1)) * (o.w - 2) + 1;
+  const y = v => o.h - 3 - (v / max) * (o.h - 6);
+  const pts = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const area = `M${x(0)},${o.h} L` + pts.split(' ').join(' L') + ` L${x(n-1)},${o.h} Z`;
+  const lx = x(n - 1), ly = y(vals[n - 1]);
+  return `<svg class="spark" width="${o.w}" height="${o.h}" viewBox="0 0 ${o.w} ${o.h}" aria-hidden="true">
+    ${o.fill ? `<path d="${area}" fill="${o.color}" opacity=".16"/>` : ''}
+    <polyline points="${pts}" fill="none" stroke="${o.color}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="2.6" fill="${o.color}"/>
+  </svg>`;
+}
+
+/* ----------------------------------------------------------- line chart - */
+function lineChart(el, cfg){
+  const W = 640, H = cfg.h || 210, P = { l: 46, r: 12, t: 14, b: 26 };
+  const labels = cfg.labels, series = cfg.series;
+  const n = labels.length;
+  const allV = series.flatMap(s => s.values);
+  let max = Math.max(...allV), min = cfg.yMin !== undefined ? cfg.yMin : Math.min(...allV);
+  if (cfg.zero) min = 0;
+  const pad = (max - min) * .12 || 1;
+  max = max + pad; min = Math.max(cfg.floor === undefined ? -Infinity : cfg.floor, min - pad);
+  const nb = niceBounds(min, max, 3); min = nb.lo; max = nb.hi;
+  if (cfg.floor !== undefined) min = Math.max(cfg.floor, min);
+  if (cfg.ceil !== undefined) max = Math.min(cfg.ceil, max);
+  const step = nb.step;
+  const px = i => P.l + (i / Math.max(1, n - 1)) * (W - P.l - P.r);
+  const py = v => H - P.b - ((v - min) / (max - min || 1)) * (H - P.t - P.b);
+
+  let g = '';
+  for (let v = min; v <= max + step * 1e-6; v += step){
+    const yy = py(v);
+    g += `<line x1="${P.l}" x2="${W - P.r}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`;
+    g += `<text x="${P.l - 8}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="Montserrat,sans-serif">${esc(cfg.yFmt ? cfg.yFmt(v) : Math.round(v))}</text>`;
+  }
+  const xstep = n > 9 ? 2 : 1;
+  for (let i = 0; i < n; i += xstep)
+    g += `<text x="${px(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="Montserrat,sans-serif">${esc(labels[i])}</text>`;
+
+  let paths = '';
+  for (const s of series){
+    const pts = s.values.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ');
+    if (s.fill) paths += `<path d="M${px(0)},${H - P.b} L${pts.split(' ').join(' L')} L${px(n-1)},${H - P.b} Z" fill="${s.color}" opacity=".13"/>`;
+    paths += `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"${s.dash ? ` stroke-dasharray="4 4"` : ''}/>`;
+    const li = s.values.length - 1;
+    paths += `<circle cx="${px(li).toFixed(1)}" cy="${py(s.values[li]).toFixed(1)}" r="3.4" fill="${s.color}" stroke="var(--surface)" stroke-width="2"/>`;
+  }
+
+  let hit = '';
+  const bw = (W - P.l - P.r) / Math.max(1, n - 1);
+  for (let i = 0; i < n; i++)
+    hit += `<rect class="hit" data-i="${i}" x="${(px(i) - bw / 2).toFixed(1)}" y="${P.t}" width="${bw.toFixed(1)}" height="${H - P.t - P.b}" fill="transparent"/>`;
+
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block; overflow:visible" role="img" aria-label="${esc(cfg.aria || '')}">
+    ${g}<line class="cross" x1="0" x2="0" y1="${P.t}" y2="${H - P.b}" stroke="var(--text-2)" stroke-width="1" opacity="0"/>${paths}${hit}
+  </svg>` + (series.length > 1 ? legendHTML(series) : '');
+
+  const svg = el.querySelector('svg'), cross = svg.querySelector('.cross');
+  svg.addEventListener('mousemove', e => {
+    const t = e.target.closest('.hit'); if (!t) return;
+    const i = +t.dataset.i;
+    cross.setAttribute('x1', px(i)); cross.setAttribute('x2', px(i)); cross.setAttribute('opacity', '.35');
+    showTip(`<b>${esc(cfg.tipLabel ? cfg.tipLabel(i) : labels[i])}</b>` +
+      series.map(s => `<div><span class="tk">${esc(s.name)}</span> ${esc(cfg.yFmt ? cfg.yFmt(s.values[i]) : s.values[i])}</div>`).join(''), e);
+  });
+  svg.addEventListener('mouseleave', () => { cross.setAttribute('opacity', '0'); hideTip(); });
+}
+
+function legendHTML(series){
+  return `<div class="legend" style="margin-top:10px; gap:16px">` + series.map(s =>
+    `<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:2px;background:${s.color};display:block"></i>${esc(s.name)}</span>`
+  ).join('') + `</div>`;
+}
+
+/* ------------------------------------------------------------ bar chart - */
+function barChart(el, cfg){
+  const W = 640, H = cfg.h || 200, P = { l: 46, r: 12, t: 14, b: 26 };
+  const d = cfg.data, n = d.length;
+  const nb = niceBounds(0, Math.max(1, ...d.map(x => x.value)) * 1.06, 3);
+  const max = nb.hi;
+  const iw = (W - P.l - P.r) / n, bw = Math.min(cfg.maxBar || 34, iw * .62);
+  const py = v => H - P.b - (v / max) * (H - P.t - P.b);
+
+  let g = '';
+  for (let v = 0; v <= max + nb.step * 1e-6; v += nb.step){
+    const yy = py(v);
+    g += `<line x1="${P.l}" x2="${W - P.r}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="var(--grid)"/>`;
+    g += `<text x="${P.l - 8}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="Montserrat,sans-serif">${esc(cfg.yFmt ? cfg.yFmt(v) : Math.round(v))}</text>`;
+  }
+  let bars = '';
+  d.forEach((x, i) => {
+    const cx = P.l + iw * i + iw / 2, h = Math.max(2, H - P.b - py(x.value));
+    bars += `<rect class="hit" data-i="${i}" x="${(cx - bw / 2).toFixed(1)}" y="${py(x.value).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${x.color || cfg.color || 'var(--s1)'}"${x.op ? ` opacity="${x.op}"` : ''}/>`;
+    bars += `<text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="Montserrat,sans-serif">${esc(x.label)}</text>`;
+  });
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block" role="img" aria-label="${esc(cfg.aria || '')}">${g}${bars}</svg>`;
+  el.querySelector('svg').addEventListener('mousemove', e => {
+    const t = e.target.closest('.hit'); if (!t){ hideTip(); return; }
+    const x = d[+t.dataset.i];
+    showTip(`<b>${esc(x.full || x.label)}</b><div>${esc(cfg.tip ? cfg.tip(x) : x.value)}</div>`, e);
+  });
+  el.querySelector('svg').addEventListener('mouseleave', hideTip);
+}
+
+/* -------------------------------------------------- grouped bar chart --- */
+function groupedBars(el, cfg){
+  const W = 640, H = 210, P = { l: 46, r: 12, t: 14, b: 26 };
+  const d = cfg.data, n = d.length;
+  const nb = niceBounds(0, Math.max(1, ...d.flatMap(x => [x.a, x.b])) * 1.08, 3);
+  const max = nb.hi;
+  const iw = (W - P.l - P.r) / n, bw = Math.min(13, iw * .3);
+  const py = v => H - P.b - (v / max) * (H - P.t - P.b);
+  let g = '';
+  for (let v = 0; v <= max + nb.step * 1e-6; v += nb.step){
+    const yy = py(v);
+    g += `<line x1="${P.l}" x2="${W - P.r}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="var(--grid)"/>`;
+    g += `<text x="${P.l - 8}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="Montserrat,sans-serif">${Math.round(v)}</text>`;
+  }
+  let bars = '';
+  d.forEach((x, i) => {
+    const cx = P.l + iw * i + iw / 2;
+    const ha = Math.max(2, H - P.b - py(x.a)), hb = Math.max(2, H - P.b - py(x.b));
+    bars += `<rect x="${(cx - bw - 1).toFixed(1)}" y="${py(x.a).toFixed(1)}" width="${bw}" height="${ha.toFixed(1)}" rx="3" fill="${cfg.colorA}"/>`;
+    bars += `<rect x="${(cx + 1).toFixed(1)}" y="${py(x.b).toFixed(1)}" width="${bw}" height="${hb.toFixed(1)}" rx="3" fill="${cfg.colorB}"/>`;
+    bars += `<rect class="hit" data-i="${i}" x="${(cx - iw / 2).toFixed(1)}" y="${P.t}" width="${iw.toFixed(1)}" height="${H - P.t - P.b}" fill="transparent"/>`;
+    bars += `<text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="Montserrat,sans-serif">${esc(x.label)}</text>`;
+  });
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block" role="img" aria-label="${esc(cfg.aria || '')}">${g}${bars}</svg>` +
+    legendHTML([{ name: cfg.nameA, color: cfg.colorA }, { name: cfg.nameB, color: cfg.colorB }]);
+  el.querySelector('svg').addEventListener('mousemove', e => {
+    const t = e.target.closest('.hit'); if (!t){ hideTip(); return; }
+    const x = d[+t.dataset.i];
+    showTip(`<b>${esc(x.full || x.label)}</b><div><span class="tk">${esc(cfg.nameA)}</span> ${x.a}</div><div><span class="tk">${esc(cfg.nameB)}</span> ${x.b}</div>${x.extra ? `<div class="tk" style="margin-top:4px">${esc(x.extra)}</div>` : ''}`, e);
+  });
+  el.querySelector('svg').addEventListener('mouseleave', hideTip);
+}
+
+/* ---------------------------------------------------------- risk pills -- */
+const ICONS = {
+  red:   '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5 15 14H1L8 1.5Zm0 4.2a.9.9 0 0 0-.9 1v2.6a.9.9 0 0 0 1.8 0V6.7a.9.9 0 0 0-.9-1Zm0 5.3a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/></svg>',
+  amber: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm0 3a1 1 0 0 1 1 1v3.4a1 1 0 1 1-2 0V5a1 1 0 0 1 1-1Zm0 6.6a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2Z"/></svg>',
+  green: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm3.5 5.1-4 4.4a.9.9 0 0 1-1.3.05L4.4 8.8a.9.9 0 0 1 1.2-1.3l1.1 1 3.4-3.7a.9.9 0 1 1 1.4 1.3Z"/></svg>',
+  low:   '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 7h12v2H2z"/></svg>',
+  new:   '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.6 9.9 5.6l4.4.6-3.2 3.1.8 4.4L8 11.6l-3.9 2.1.8-4.4L1.7 6.2l4.4-.6L8 1.6Z"/></svg>'
+};
+const RISK_LABEL = { red:'At risk', amber:'Slipping', green:'Steady', low:'Barely uses it', new:'New', gone:'Cancelled' };
+const RISK_CLASS = { red:'pill-red', amber:'pill-amber', green:'pill-green', low:'pill-new', new:'pill-new', gone:'pill-new' };
+function riskPill(risk, text){
+  return `<span class="pill ${RISK_CLASS[risk]}">${ICONS[risk] || ''}${esc(text || RISK_LABEL[risk])}</span>`;
+}
+const riskColor = r =>
+    r === 'red'   ? 'var(--critical)'
+  : r === 'amber' ? 'var(--warning)'
+  : r === 'low'   ? 'var(--warning)'
+  : r === 'new'   ? 'var(--s1)'
+  :                 'var(--good)';
+</script>
+
+<script>
+/* ============================================================================
+   Layer 3b \u2014 SCREENS
+   ========================================================================= */
+
+let DATA = buildDemoData();
+let G, U, L, WEEKLY;
+const STATE = {
+  period: 'week', screen: 'action',
+  mFilter: 'all', mSearch: '', sort: { key: 'risk', dir: 1 },
+  showAll: false, contacted: new Set(), snoozed: new Set()
+};
+
+const OWNER = 'August';          // this dashboard is built for the owner to read
+const DOWS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DOW_IDX = [1,2,3,4,5,6,0];
+const HOURS = [5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22];
+
+function recompute(){
+  G = analyzeGym(DATA, STATE.period);
+  G.scanStart = DATA.scanStart;
+  U = analyzeUtilization(G);
+  L = analyzeLifecycle(G);
+  WEEKLY = (() => {
+    const out = new Array(13).fill(0);
+    for (const m of G.all) for (const t of m.scans){
+      const i = Math.floor((TODAY + DAY - t) / WEEK);
+      if (i >= 0 && i < 13) out[i]++;
+    }
+    return out.reverse();
+  })();
+}
+
+/* ------------------------------------------------------------- helpers -- */
+function kpi(o){
+  const dc = o.delta === undefined ? '' :
+    `<span class="delta ${o.delta > 0 ? (o.inverse ? 'down' : 'up') : o.delta < 0 ? (o.inverse ? 'up' : 'down') : 'flat'}">${o.delta > 0 ? '\u25b2' : o.delta < 0 ? '\u25bc' : '\u2014'} ${esc(o.deltaText)}</span>`;
+  return `<div class="kpi">
+    <div class="lab">${esc(o.label)}</div>
+    <div class="row"><span class="num val">${esc(o.value)}</span>${o.unit ? `<span class="unit">${esc(o.unit)}</span>` : ''}${dc}</div>
+    ${o.spark ? `<div>${o.spark}</div>` : ''}
+    <div class="foot">${o.foot}</div>
+  </div>`;
+}
+const viewRiskColor = r => r === 'red' ? 'var(--critical)' : r === 'amber' || r === 'low' ? 'var(--warning)' : r === 'new' ? 'var(--s1)' : 'var(--good)';
+const initialsAvatar = a =>
+  `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--sunken);color:${viewRiskColor(a.risk)};font-size:10px;font-weight:700;flex:none">${esc(a.initials)}</span>`;
+
+const coachLabel = a => a.coach ? 'Coach ' + a.coach
+  : a.programmed ? 'you write their programming'
+  : 'trains on their own';
+
+const lastSeenText = a => a.daysSince === Infinity ? 'never' : a.daysSince === 0 ? 'today' : a.daysSince === 1 ? 'yesterday' : a.daysSince + ' days ago';
+
+function callCard(a, rank, why, msg, klass){
+  const done = STATE.contacted.has(a.id);
+  return `<article class="call ${klass}${done ? ' done' : ''}" data-id="${a.id}">
+    <div class="rank">${rank}</div>
+    <div>
+      <div class="who">
+        ${initialsAvatar(a)}
+        <span class="nm">${esc(a.name)}</span>
+        ${riskPill(a.risk === 'new' ? 'new' : a.risk)}
+        <span class="meta">${esc(a.tier)} \u00b7 ${fmtMoney(a.rate)}/mo \u00b7 ${esc(tenureShort(a.tenureMo))} \u00b7 ${esc(coachLabel(a))}</span>
+      </div>
+      <p class="why">${why}</p>
+      <div class="msg"><span class="mlab">What to send</span>${esc(msg)}</div>
+    </div>
+    <div class="side">
+      ${sparkline(a.wk.slice(0, 12).reverse(), { w: 116, h: 34, color: viewRiskColor(a.risk) })}
+      <span class="meta" style="font-size:10px">12-week visits \u00b7 last seen ${esc(lastSeenText(a))}</span>
+      <div class="acts">
+        <button class="btn btn-sm act-copy" data-msg="${esc(msg)}">Copy text</button>
+        <button class="btn btn-sm act-done">${done ? 'Undo' : 'Mark contacted'}</button>
+        <button class="btn btn-sm act-snooze">Snooze 7d</button>
+      </div>
+    </div>
+  </article>`;
+}
+
+/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 ACTION CENTER \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
+function renderAction(){
+  STATE.snoozed = STATE.snoozed || new Set();
+  const P = PERIODS[STATE.period];
+  const red = G.flagged.filter(m => m.risk === 'red').length;
+  const amber = G.flagged.filter(m => m.risk === 'amber').length;
+  const lowUse = G.flagged.filter(m => m.risk === 'low').length;
+  const now = new Date(TODAY);
+
+  const hr = new Date().getHours();
+  document.getElementById('nar-hello').textContent =
+    (hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + ', ' + OWNER;
+  document.getElementById('nar-date').textContent =
+    now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+
+  const DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const peakDayName = DAYNAMES[U.peakCell.d];
+  const vDelta = G.visitsPrev ? (G.visits - G.visitsPrev) / G.visitsPrev * 100 : 0;
+
+  document.getElementById('nar-text').innerHTML =
+    `<b>${G.active.length} active members</b>, ${G.netChange >= 0 ? 'up' : 'down'} <b>${Math.abs(G.netChange)}</b> over ${P.label} on ${G.joined} join${G.joined === 1 ? '' : 's'} and ${G.cancelled} cancellation${G.cancelled === 1 ? '' : 's'}. ` +
+    `The floor took <b>${fmtInt(G.visits)} scans</b>, ${vDelta >= 0 ? 'up' : 'down'} ${Math.abs(Math.round(vDelta))}% on the ${P.days} days before. ` +
+    `<b>${red} member${red === 1 ? ' has' : 's have'} gone quiet</b>, ${amber} more are slipping` +
+    (lowUse ? `, and ${lowUse} ${lowUse === 1 ? 'is' : 'are'} paying for a membership they barely use` : '') +
+    `. That group is ${fmtMoney(G.atRiskRevenue)} a month. ` +
+    (U.empty
+      ? `No scans in this window yet.`
+      : `Your busiest slot is ${peakDayName} at ${fmtTime(U.peakCell.h, 0)}, about ${Math.round(U.peakCell.v)} people through the door; ${fmtTime(U.deadH, 0)} is your deadest hour.`);
+
+  const mPrev = G.months[G.months.length - 2] || G.months[0];
+  document.getElementById('kpis').innerHTML =
+    kpi({ label:'Active members', value: fmtInt(G.active.length),
+          delta: G.netChange, deltaText: (G.netChange >= 0 ? '+' : '') + G.netChange,
+          spark: sparkline(G.months.map(m => m.active), { w: 168, h: 30, color:'var(--s1)' }),
+          foot: `${G.joined} joined \u00b7 ${G.cancelled} cancelled ${esc(P.label)}` }) +
+    kpi({ label:'Door scans \u00b7 ' + P.label, value: fmtInt(G.visits),
+          delta: Math.round(vDelta), deltaText: Math.abs(Math.round(vDelta)) + '%',
+          spark: sparkline(WEEKLY, { w: 168, h: 30, color:'var(--s1)' }),
+          foot: `${fmt1(G.visits / Math.max(1, G.active.length))} per member \u00b7 13-week trend` }) +
+    kpi({ label:'Need a call', value: fmtInt(G.flagged.length), unit:'members',
+          foot: `<span style="color:var(--critical)">${fmtMoney(G.atRiskRevenue)}/mo</span> of revenue \u00b7 ${Math.round(G.flagged.length / Math.max(1, G.active.length) * 100)}% of the roster` }) +
+    kpi({ label:'Monthly recurring revenue', value: fmtMoney(G.mrr),
+          delta: G.mrr - mPrev.mrr, deltaText: fmtMoney(Math.abs(G.mrr - mPrev.mrr)),
+          spark: sparkline(G.months.map(m => m.mrr), { w: 168, h: 30, color:'var(--s1)' }),
+          foot: `${fmtMoney(G.arm)} average per member` });
+
+  // ---- call list
+  const list = G.flagged.filter(a => !STATE.snoozed.has(a.id)).sort((a, b) => b.score - a.score);
+  const shown = STATE.showAll ? list : list.slice(0, 8);
+  document.getElementById('calls').innerHTML = shown.length
+    ? shown.map((a, i) => callCard(a, i + 1, reasonFor(a), messageFor(a), 'r-' + (a.risk === 'low' ? 'amber' : a.risk))).join('')
+    : G.flagged.length
+      ? `<div class="card empty"><strong>Call list snoozed</strong>Use \u201cshow them\u201d below whenever you're ready to bring everyone back.</div>`
+      : `<div class="card empty"><strong>Nobody's slipping</strong>Every member is training at or above their normal rate. Enjoy it.</div>`;
+  document.getElementById('calls-sub').textContent =
+    `${list.length} members, ranked by how much you'd lose and how fast you're losing them.`;
+  document.getElementById('tab-count').textContent = list.length;
+  const more = document.getElementById('calls-more');
+  more.hidden = list.length <= 8;
+  more.textContent = STATE.showAll ? 'Show fewer' : `Show the other ${list.length - 8}`;
+
+  let snoozedLine = document.getElementById('calls-snoozed');
+  if (!snoozedLine){
+    snoozedLine = document.createElement('p');
+    snoozedLine.id = 'calls-snoozed';
+    snoozedLine.className = 'note';
+    document.getElementById('calls').insertAdjacentElement('afterend', snoozedLine);
+  }
+  snoozedLine.hidden = STATE.snoozed.size === 0;
+  snoozedLine.innerHTML = STATE.snoozed.size
+    ? `${STATE.snoozed.size} snoozed \u00b7 <span class="act-unsnooze-all" role="button" tabindex="0" style="color:var(--text-2);cursor:pointer;text-decoration:underline">show them</span>`
+    : '';
+  const unsnoozeAll = snoozedLine.querySelector('.act-unsnooze-all');
+  if (unsnoozeAll){
+    const clearSnoozed = () => { STATE.snoozed.clear(); renderAction(); };
+    unsnoozeAll.addEventListener('click', clearSnoozed);
+    unsnoozeAll.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); clearSnoozed(); }
+    });
+  }
+
+  // ---- onboarding
+  const ob = G.active
+    .filter(m => !STATE.snoozed.has(m.id))
+    .filter(m => m.tenureDays < 95 && m.tenureDays > 12)
+    .map(m => Object.assign(m, { first30: m.scans.filter(t => t < m.join + 30 * DAY).length }))
+    .filter(m => m.first30 < 7)
+    .sort((a, b) => (a.first30 - b.first30) || (b.rate - a.rate))
+    .slice(0, 4);
+  document.getElementById('onboard').innerHTML = ob.length
+    ? ob.map((a, i) => { const r = onboardReason(a); return callCard(Object.assign({}, a, { risk:'new' }), i + 1, r.why, r.msg, 'r-new'); }).join('')
+    : `<div class="card empty"><strong>Every new member is training</strong>Nobody has signed up in the last three months and gone missing.</div>`;
+
+  // ---- wins
+  const wins = G.active
+    .filter(m => !STATE.snoozed.has(m.id))
+    .filter(m => m.baseline >= 1 && (m.streak >= 4 || m.current > m.baseline * 1.4))
+    .sort((a, b) => (b.streak - a.streak) || (b.current - a.current))
+    .slice(0, 3);
+  document.getElementById('wins').innerHTML = wins.length
+    ? wins.map((a, i) => { const r = winReason(a); return callCard(Object.assign({}, a, { risk:'green' }), i + 1, r.why, r.msg, 'r-green'); }).join('')
+    : `<div class="card empty"><strong>Nothing standing out this week</strong></div>`;
+
+  for (const button of document.querySelectorAll('.act-snooze')){
+    button.addEventListener('click', e => {
+      const card = button.closest('.call');
+      if (card) STATE.snoozed.add(+card.dataset.id);
+      renderAction(); e.stopPropagation();
+    });
+  }
+}
+
+/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 MEMBERS \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
+const SORTERS = {
+  name: a => a.name, tier: a => a.rate, tenure: a => a.tenureMo,
+  baseline: a => a.baseline, current: a => a.current,
+  last: a => a.daysSince === Infinity ? 99999 : a.daysSince,
+  risk: a => ({ red:0, amber:1, low:2, new:3, green:4 })[a.risk],
+  ltv: a => a.paid
+};
+
+function renderMembers(){
+  const tablewrap = document.getElementById('m-table').closest('.tablewrap');
+  let cards = document.getElementById('m-cards');
+  if (!cards){
+    cards = document.createElement('div');
+    cards.id = 'm-cards';
+    cards.className = 'mcards';
+    tablewrap.insertAdjacentElement('afterend', cards);
+  }
+  const q = STATE.mSearch.trim().toLowerCase();
+  let rows = G.active.filter(a => {
+    if (q && !a.name.toLowerCase().includes(q) && !a.tier.toLowerCase().includes(q)) return false;
+    if (STATE.mFilter === 'all') return true;
+    if (STATE.mFilter === 'green') return a.risk === 'green';
+    if (STATE.mFilter === 'amber') return a.risk === 'amber' || a.risk === 'low';
+    return a.risk === STATE.mFilter;
+  });
+  const f = SORTERS[STATE.sort.key];
+  rows.sort((a, b) => {
+    const x = f(a), y = f(b);
+    const c = typeof x === 'string' ? x.localeCompare(y) : x - y;
+    return c * STATE.sort.dir;
+  });
+
+  document.getElementById('members-sub').textContent =
+    `${rows.length} of ${G.active.length} active members. Click anyone for their full history.`;
+
+  document.getElementById('m-body').innerHTML = rows.map(a => {
+    const chg = a.baseline > 0 ? (a.current - a.baseline) / a.baseline * 100 : 0;
+    const chgTxt = a.baseline > 0 ? (chg >= 0 ? '+' : '') + Math.round(chg) + '%' : '\u2014';
+    const chgTitle = a.baseline <= 0 ? 'No established normal yet'
+      : a.current === a.baseline ? `${fmt1(a.baseline)} a week, unchanged`
+      : `${fmt1(a.baseline)} a week ${a.current < a.baseline ? 'down' : 'up'} to ${fmt1(a.current)}`;
+    return `<tr data-id="${a.id}">
+      <td><span style="display:inline-flex;align-items:center;gap:9px">${initialsAvatar(a)}<span class="mname">${esc(a.name)}</span></span></td>
+      <td style="color:var(--text-2)">${esc(a.tier)}<span style="color:var(--muted)"> \u00b7 ${fmtMoney(a.rate)}</span></td>
+      <td class="r tnum">${esc(tenureShort(a.tenureMo))}</td>
+      <td class="r tnum">${fmt1(a.baseline)}</td>
+      <td class="r tnum">${fmt1(a.current)}<span title="${esc(chgTitle)}" style="color:${chg < -25 ? 'var(--critical)' : chg > 25 ? 'var(--good)' : 'var(--muted)'}; font-size:11px"> ${chgTxt}</span></td>
+      <td class="r">${sparkline(a.wk.slice(0, 12).reverse(), { w: 92, h: 24, color: 'var(--s1)' })}</td>
+      <td class="r" style="color:${a.daysSince >= 14 ? 'var(--critical)' : 'var(--text-2)'}">${esc(lastSeenText(a))}</td>
+      <td>${riskPill(a.risk)}</td>
+      <td class="r tnum">${fmtMoney(a.paid)}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="9"><div class="empty"><strong>No matches</strong>Try a different search or filter.</div></td></tr>`;
+
+  cards.innerHTML = rows.map(a => `<article class="mcard" data-id="${a.id}">
+    <div class="top">${initialsAvatar(a)} <span class="nm">${esc(a.name)}</span> ${riskPill(a.risk)}</div>
+    <div class="stats"><span>normal <b>${esc(fmt1(a.baseline))}</b>/wk</span><span>now <b>${esc(fmt1(a.current))}</b>/wk</span><span>last seen ${esc(lastSeenText(a))}</span></div>
+  </article>`).join('') || `<div class="empty"><strong>No matches</strong>Try a different search or filter.</div>`;
+  cards.onclick = e => {
+    const card = e.target.closest('.mcard');
+    if (card && card.dataset.id) openMember(+card.dataset.id);
+  };
+}
+
+/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 UTILIZATION \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
+function heatColor(v, max){
+  if (max <= 0) return 'var(--h0)';
+  const r = v / max;
+  const steps = ['var(--h0)','var(--h1)','var(--h2)','var(--h3)','var(--h4)','var(--h5)','var(--h6)'];
+  if (r <= 0.001) return steps[0];
+  return steps[Math.min(6, 1 + Math.floor(r * 6))];
+}
+
+function renderUtil(){
+  const P = PERIODS[STATE.period];
+  document.getElementById('util-sub').textContent = U.daysPresent < 7
+    ? `${fmtInt(U.total)} door scans over ${P.label}. Only ${U.daysPresent} day${U.daysPresent === 1 ? '' : 's'} of the week falls in this window, so switch to Month or Quarter to read the pattern properly.`
+    : `${fmtInt(U.total)} door scans over ${P.label}, averaged across each occurrence of that weekday.`;
+
+  const peakOccPct = Math.round(U.maxOcc / CAPACITY * 100);
+  const DAYS3 = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  document.getElementById('util-kpis').innerHTML = U.empty
+    ? kpi({ label:'Door scans', value:'0', foot:'Nothing came through the door in this window. Try a longer period.' })
+    : kpi({ label:'Busiest slot', value: fmtTime(U.peakCell.h, 0),
+            foot:`${DAYS3[U.peakCell.d]} is your heaviest, about ${Math.round(U.peakCell.v)} people in that hour` }) +
+      kpi({ label:'Peak floor pressure', value: peakOccPct, unit:'%',
+            foot:`About ${Math.round(U.maxOcc)} people on the floor around ${esc(U.maxOccTime)}, against an assumed ${CAPACITY}-person capacity` }) +
+      kpi({ label:'Trained 4-8pm weekdays', value: Math.round(U.inPeakWindow * 100), unit:'%',
+            foot:`${Math.round(U.offPeak * 100)}% train 9am to 4pm, when the floor is nearly empty` }) +
+      kpi({ label:'Quietest hour', value: fmtTime(U.deadH, 0),
+            foot:`${fmt1(U.dead)} scans an hour. The cheapest capacity you own.` });
+
+  const heatCard = document.getElementById('heat').closest('.card');
+  let heatSummary = document.getElementById('heat-summary');
+  if (!heatSummary){
+    heatSummary = document.createElement('p');
+    heatSummary.id = 'heat-summary';
+    heatSummary.className = 'note';
+    heatCard.parentNode.insertBefore(heatSummary, heatCard);
+  }
+  const DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const fullTime = h => fmtTime(h, 0).replace(/([ap])$/, '$1m');
+  heatSummary.textContent = U.empty
+    ? 'No door scans in this window yet, so there is no busiest or quietest time to compare.'
+    : `Busiest: ${DAYNAMES[U.peakCell.d]} around ${fullTime(U.peakCell.h)}, about ${Math.round(U.peakCell.v)} people through the door. Quietest: ${fullTime(U.deadH)}.`;
+
+  // heatmap
+  const heat = document.getElementById('heat');
+  heat.style.gridTemplateColumns = `46px repeat(${HOURS.length}, minmax(26px, 1fr))`;
+  let h = '<div></div>' + HOURS.map(x => `<div class="hcol">${fmtTime(x, 0)}</div>`).join('');
+  DOW_IDX.forEach((d, i) => {
+    h += `<div class="hlab">${DOWS[i]}</div>`;
+    for (const hr of HOURS){
+      const v = U.avg[d][hr];
+      const cls = CLASS_KEYS.has(`${d}-${hr}`) ? ' cls' : '';
+      h += `<div class="cell${cls}" style="background:${heatColor(v, U.maxCell)}" data-d="${d}" data-h="${hr}" data-i="${i}"></div>`;
+    }
+  });
+  heat.innerHTML = h;
+  document.getElementById('heat-legend').innerHTML =
+    ['h0','h1','h2','h3','h4','h5','h6'].map(s => `<i style="background:var(--${s})"></i>`).join('');
+
+  heat.onmousemove = e => {
+    const c = e.target.closest('.cell'); if (!c){ hideTip(); return; }
+    const d = +c.dataset.d, hr = +c.dataset.h, v = U.avg[d][hr];
+    const cl = CLASSES.find(x => x.days.includes(d) && x.h === hr);
+    showTip(`<b>${DOWS[+c.dataset.i]} ${fmtTime(hr, 0)}\u2013${fmtTime((hr + 1) % 24, 0)}</b>
+      <div>${fmt1(v)} scans in an average hour</div>
+      ${cl ? `<div class="tk">${esc(cl.name)} class at ${esc(fmtTime(cl.h, cl.m))}</div>` : ''}`, e);
+  };
+  heat.onmouseleave = hideTip;
+
+  // day curve
+  document.getElementById('curve-sub').textContent = `Average scans per hour across the ${U.daysPresent} day${U.daysPresent === 1 ? '' : 's'} of the week in this window.`;
+  barChart(document.getElementById('curve'), {
+    h: 190, maxBar: 26,
+    data: HOURS.map(x => ({
+      label: x % 3 === 2 ? fmtTime(x, 0) : '',
+      full: fmtTime(x, 0) + '\u2013' + fmtTime((x + 1) % 24, 0),
+      value: U.hourlyAvg[x],
+      color: 'var(--s1)'
+    })),
+    yFmt: v => fmt1(v),
+    tip: x => fmt1(x.value) + ' scans an hour on average',
+    aria:'Average door scans by hour of day'
+  });
+
+  // class table
+  document.getElementById('class-table').innerHTML =
+    `<thead><tr><th>Class</th><th>Time</th><th>Days</th><th class="r">Heads on the floor</th><th class="r">Fill vs ${CLASS_CAP} cap</th></tr></thead><tbody>` +
+    U.classes.map(c => {
+      if (!c.sessions) return `<tr style="cursor:default"><td class="mname">${esc(c.name)}</td><td style="color:var(--text-2)">${esc(c.time)}</td>
+        <td style="color:var(--muted)">${esc(c.dayLabel)}</td><td class="r" style="color:var(--muted)">&mdash;</td>
+        <td class="r" style="color:var(--muted)">did not run in this window</td></tr>`;
+      const pct = c.avg / CLASS_CAP * 100;
+      const col = pct > 92 ? 'var(--critical)' : pct > 55 ? 'var(--good)' : 'var(--warning)';
+      return `<tr style="cursor:default"><td class="mname">${esc(c.name)}</td><td style="color:var(--text-2)">${esc(c.time)}</td>
+        <td style="color:var(--muted)">${esc(c.dayLabel)}</td><td class="r tnum">${fmt1(c.avg)}</td>
+        <td class="r"><span style="display:inline-flex;align-items:center;gap:8px;justify-content:flex-end">
+          <span style="width:88px;height:6px;background:var(--sunken);border-radius:4px;overflow:hidden;display:block">
+            <span style="display:block;height:100%;width:${Math.min(100, pct)}%;background:${col};border-radius:4px"></span></span>
+          <span class="tnum" style="color:${col};min-width:40px">${Math.round(pct)}%</span></span></td></tr>`;
+    }).join('') + '</tbody>';
+
+  // recommendations, derived not written
+  const ran = U.classes.filter(c => c.sessions > 0);
+  const over = ran.filter(c => c.avg / CLASS_CAP > .92);
+  const under = ran.filter(c => c.avg / CLASS_CAP < .3);
+  const listOf = arr => arr.length === 1 ? arr[0]
+    : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
+  const recos = [];
+  if (over.length) recos.push(`<b>${esc(listOf(over.map(c => c.name + ' ' + c.time)))}</b> ${over.length === 1 ? 'is' : 'are'} at or past the ${CLASS_CAP}-person cap. Overcrowding at peak is one of the most-cited reasons members give for quitting, so either add a coach to that hour or run a second heat.`);
+  if (under.length) recos.push(`<b>${esc(listOf(under.slice(0, 3).map(c => c.name + ' ' + c.time + ' ' + c.dayLabel)))}</b> ${under.length === 1 ? 'is running' : 'are running'} under a third full. That is paid coaching time against a near-empty floor: merge them, or move the slot to an hour people actually want.`);
+  recos.push(`Only <b>${Math.round(U.offPeak * 100)}%</b> of weekday training happens between 9am and 4pm, and ${fmtTime(U.deadH, 0)} is dead. An off-peak rate for that window is the standard play: gyms that offer one report higher overall utilization and lower churn, and it sells capacity you are already paying rent on.`);
+  recos.push(`Peak floor pressure hits <b>${peakOccPct}%</b> of an assumed ${CAPACITY}-person capacity around ${fmtTime(U.peakH, 0)}. Below 100% you have room; the number to watch is whether it climbs as you grow. Tell me your real floor and class caps and these two numbers get exact.`);
+  document.getElementById('util-reco').innerHTML = recos.map(r => `<p style="margin-bottom:10px">${r}</p>`).join('');
+}
+
+/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 GROWTH \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
+function renderGrowth(){
+  const M = G.months, last = M[M.length - 1], prev = M[M.length - 2];
+  const hasChurn = G.all.some(m => m.cancel);
+  const hasLeg = G.leg > 0;   // needs a departure inside the trailing 12 months
+  document.getElementById('growth-sub').textContent = 'Rolling 13 months. The current month is still in progress.';
+
+  document.getElementById('growth-kpis').innerHTML =
+    (hasChurn
+      ? kpi({ label:'Monthly churn', value: fmt1(G.churnAvg), unit:'%', inverse: true,
+              delta: last.churn - prev.churn, deltaText: fmt1(Math.abs(last.churn - prev.churn)) + ' pts MoM',
+              foot:'12-month average \u00b7 3\u20135% is the healthy band' })
+      : kpi({ label:'Monthly churn', value: '\u2014',
+              foot:'No cancellations in the loaded data. Map a cancellation-date column to calculate this.' })) +
+    kpi({ label:'Revenue per member', value: fmtMoney(G.arm),
+          foot:`Benchmark for a gym this size is about $205` }) +
+    (hasLeg
+      ? kpi({ label:'Length of engagement', value: fmt1(G.leg), unit:'mo',
+              foot:`How long a departing member stayed \u00b7 industry average 7.8 months` }) +
+        kpi({ label:'Lifetime value', value: fmtMoney(G.ltv),
+              foot:`Projected value of one retained member at today's revenue and engagement` })
+      : kpi({ label:'Length of engagement', value: '\u2014',
+              foot:'No cancellation in the last 12 months to measure against. Map a cancellation-date column and include cancelled clients.' }) +
+        kpi({ label:'Lifetime value', value: '\u2014',
+              foot:'Needs length of engagement, which needs cancellation dates.' }));
+
+  lineChart(document.getElementById('chart-members'), {
+    labels: M.map(m => m.label), series: [{ name:'Active members', color:'var(--s1)', values: M.map(m => m.active), fill: true }],
+    tipLabel: i => M[i].full, aria:'Active members by month'
+  });
+  lineChart(document.getElementById('chart-mrr'), {
+    labels: M.map(m => m.label), series: [{ name:'MRR', color:'var(--s2)', values: M.map(m => m.mrr), fill: true }],
+    yFmt: v => '$' + Math.round(v / 1000) + 'k', tipLabel: i => M[i].full, aria:'Monthly recurring revenue'
+  });
+  groupedBars(document.getElementById('chart-flow'), {
+    data: M.map(m => ({ label: m.label, full: m.full, a: m.joins, b: m.cancels, extra: 'Churn ' + fmt1(m.churn) + '%' })),
+    nameA:'Joined', colorA:'var(--good)', nameB:'Cancelled', colorB:'var(--critical)',
+    aria:'Joins and cancellations by month'
+  });
+  lineChart(document.getElementById('chart-survival'), {
+    labels: L.survival.map(s => s.k === 0 ? 'Join' : 'M' + s.k),
+    series: [{ name:'Still active', color:'var(--s3)', values: L.survival.map(s => s.pct), fill: true }],
+    yFmt: v => Math.round(v) + '%', floor: 0, ceil: 100,
+    tipLabel: i => i === 0 ? 'At signup' : `${i} month${i === 1 ? '' : 's'} in`,
+    aria:'Share of members still active by months since joining'
+  });
+
+  const bench = [
+    { label:'Active members', v: G.active.length, target: 150, fmt: fmtInt, note:'Two-Brain\'s first milestone' },
+    { label:'Revenue per member', v: G.arm, target: 205, fmt: fmtMoney, note:'ARM \u00b7 the $100k-owner benchmark' }
+  ].concat(hasLeg ? [
+    { label:'Length of engagement', v: G.leg, target: 13, fmt: v => fmt1(v) + ' mo', note:'LEG \u00b7 industry average is 7.8' },
+    { label:'Lifetime value', v: G.ltv, target: 2665, fmt: fmtMoney, note:'ARM \u00d7 LEG' }
+  ] : []);
+  document.getElementById('benchmarks').innerHTML = bench.map(b => {
+    const scale = Math.max(b.v, b.target) * 1.25;
+    const pct = b.v / scale * 100, tp = b.target / scale * 100;
+    const good = b.v >= b.target;
+    return `<div class="bench">
+      <div style="display:flex; align-items:baseline; gap:8px">
+        <span class="num" style="font-size:26px; color:${good ? 'var(--good)' : 'var(--text)'}">${esc(b.fmt(b.v))}</span>
+        <span class="eyebrow" style="margin-left:auto">target ${esc(b.fmt(b.target))}</span>
+      </div>
+      <div class="track"><span class="fill" style="width:${pct.toFixed(1)}%; background:${good ? 'var(--good)' : 'var(--s1)'}"></span><span class="mark" style="left:${tp.toFixed(1)}%"></span></div>
+      <div class="cap"><b style="color:var(--text-2)">${esc(b.label)}</b> \u00b7 ${esc(b.note)}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('first30').innerHTML =
+    `<p class="note" style="margin-bottom:16px">Every member who joined at least six months ago, grouped by how many times they scanned in their first 30 days \u2014 and whether they were still paying at month six. This is the single cheapest lever you have.</p>` +
+    L.buckets.map(b => `<div style="display:flex; align-items:center; gap:14px; margin-bottom:11px">
+      <span style="width:96px; font-size:12px; color:var(--text-2)">${esc(b.label)}</span>
+      <span style="flex:1; height:22px; background:var(--sunken); border-radius:5px; overflow:hidden; display:block">
+        ${b.n ? `<span style="display:block; height:100%; width:${b.pct.toFixed(1)}%; background:${b.pct > 65 ? 'var(--good)' : b.pct > 40 ? 'var(--warning)' : 'var(--critical)'}; border-radius:5px"></span>` : ''}</span>
+      <span class="num" style="font-size:20px; width:56px; text-align:right; color:${b.n ? 'var(--text)' : 'var(--muted)'}">${b.n ? Math.round(b.pct) + '%' : '&mdash;'}</span>
+      <span class="cap" style="width:88px; font-size:10.5px">${b.n ? b.n + ' members' : 'nobody yet'}</span>
+    </div>`).join('') +
+    `<p class="note" style="margin-top:14px">The gap between the top and bottom rows is your onboarding problem, stated in one number. Getting a new member to <b>8 visits in month one</b> is worth more than any discount you could offer them.</p>` +
+    `<div style="margin-top:22px; border-top:1px solid var(--line); padding-top:16px">
+      <div class="eyebrow" style="margin-bottom:10px">Membership rates used for revenue \u2014 edit to match your real pricing</div>
+      <div id="rate-editor" style="display:flex; gap:10px; flex-wrap:wrap"></div>
+    </div>`;
+
+  document.getElementById('rate-editor').innerHTML = Object.keys(RATES).map(t =>
+    `<label style="display:flex; align-items:center; gap:7px; background:var(--sunken); border:1px solid var(--line); border-radius:8px; padding:7px 11px; font-size:11.5px; color:var(--text-2)">
+      ${esc(t)} <span style="color:var(--muted)">$</span>
+      <input type="number" data-tier="${esc(t)}" value="${RATES[t]}" min="0" step="1"
+        style="width:62px; background:transparent; border:0; border-bottom:1px solid var(--line); color:var(--text); font-family:inherit; font-size:12.5px; padding:2px 0">
+    </label>`).join('');
+}
+
+/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 MEMBER DRAWER \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
+function openMember(id){
+  const a = G.all.find(m => m.id === id); if (!a) return;
+  const wk = a.wk.slice(0, 26).reverse();
+  const byHour = new Array(24).fill(0);
+  for (const t of a.scans) byHour[hourOf(t)]++;
+  const topHours = byHour.map((v, h) => ({ h, v })).sort((x, y) => y.v - x.v).slice(0, 3).filter(x => x.v > 0);
+
+  document.getElementById('drawer-body').innerHTML = `
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px; padding-right:70px">
+      ${initialsAvatar(a)}<h2 style="font-size:22px">${esc(a.name)}</h2>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:20px; flex-wrap:wrap">
+      ${riskPill(a.risk)}<span class="note">${esc(a.tier)} \u00b7 ${fmtMoney(a.rate)}/mo \u00b7 ${esc(coachLabel(a))}</span>
+    </div>
+    ${a.risk !== 'green' && a.risk !== 'new' ? `<div class="narrative" style="margin-bottom:20px"><p class="txt">${reasonFor(a)}</p></div>` : ''}
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-h"><h3>Visits per week</h3><span class="sub">Last 26 weeks</span></div>
+      <div class="card-b"><div id="d-chart"></div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-h"><h3>The facts</h3></div>
+      <div class="card-b"><dl class="kv">
+        <dt>Joined</dt><dd>${new Date(a.join).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</dd>
+        <dt>Time as a member</dt><dd>${esc(tenureText(a.tenureMo))}</dd>
+        <dt>Total visits</dt><dd>${fmtInt(a.scans.length)}</dd>
+        <dt>Their normal week</dt><dd>${fmt1(a.baseline)} visits</dd>
+        <dt>Last two weeks</dt><dd style="color:${a.current < a.baseline * .7 ? 'var(--critical)' : 'var(--text)'}">${fmt1(a.current)} visits</dd>
+        <dt>Last scan</dt><dd>${a.last ? new Date(a.last).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' \u00b7 ' + esc(lastSeenText(a)) : 'never'}</dd>
+        <dt>Longest gap before now</dt><dd>${Math.round(a.priorGap)} days</dd>
+        <dt>Usual time</dt><dd>${topHours.length ? topHours.map(x => fmtTime(x.h, 0)).join(', ') : '\u2014'}</dd>
+        <dt>Paid to date</dt><dd>${fmtMoney(a.paid)}</dd>
+        <dt>Status</dt><dd>${a.active ? 'Active' : 'Cancelled ' + new Date(a.cancel).toLocaleDateString('en-US',{month:'short',year:'numeric'})}</dd>
+      </dl></div>
+    </div>
+    ${messageFor(a) ? `<div class="card"><div class="card-h"><h3>What to send</h3></div>
+      <div class="card-b"><div class="msg" style="background:var(--sunken); border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-size:12.5px; color:var(--text-2); line-height:1.6">${esc(messageFor(a))}</div>
+      <button class="btn btn-sm act-copy" style="margin-top:12px" data-msg="${esc(messageFor(a))}">Copy text</button></div></div>` : ''}`;
+
+  barChart(document.getElementById('d-chart'), {
+    h: 170, maxBar: 14,
+    data: wk.map((v, i) => ({ label: i % 6 === 0 ? (26 - i) + 'w' : '', full: `${26 - i} weeks ago`, value: v,
+      color: i >= 24 ? viewRiskColor(a.risk) : 'var(--s1)', op: i >= 24 ? 1 : .55 })),
+    tip: x => x.value + (x.value === 1 ? ' visit' : ' visits'),
+    aria:'Weekly visits'
+  });
+  document.getElementById('drawer').setAttribute('open', '');
+}
+</script>
+
+<script>
+/* ============================================================================
+   Layer 4 \u2014 CSV IMPORT  +  wiring
+   Everything here runs in the tab. No network calls, no uploads.
+   ========================================================================= */
+
+/* A plain two-way switch. Until August expresses a preference we follow the
+   host or the operating system; the first click pins it and it stays pinned. */
+const THEME_KEY = 'evsc-theme';
+
+function storedTheme(){
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return (v === 'light' || v === 'dark') ? v : null;
+  } catch (_) { return null; }
+}
+
+/* Dark is the baseline, so anything not pinned to light is dark. */
+function effectiveTheme(){
+  return document.documentElement.getAttribute('data-ui') === 'light' ? 'light' : 'dark';
+}
+
+const THEME_ICONS = {
+  light: '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 3.25a4.75 4.75 0 1 0 0 9.5 4.75 4.75 0 0 0 0-9.5Zm0 1.5a3.25 3.25 0 1 1 0 6.5 3.25 3.25 0 0 1 0-6.5ZM8 0a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 0Zm0 13.5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 13.5ZM0 8a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 0 8Zm13.5 0a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 0 1.5h-1A.75.75 0 0 1 13.5 8ZM2.7 2.7a.75.75 0 0 1 1.06 0l.7.7A.75.75 0 1 1 3.4 4.46l-.7-.7a.75.75 0 0 1 0-1.06Zm9.9 9.9a.75.75 0 0 1 1.06 0l.7.7a.75.75 0 1 1-1.06 1.06l-.7-.7a.75.75 0 0 1 0-1.06Zm1.76-9.9a.75.75 0 0 1 0 1.06l-.7.7A.75.75 0 0 1 12.6 3.4l.7-.7a.75.75 0 0 1 1.06 0Zm-9.9 9.9a.75.75 0 0 1 0 1.06l-.7.7A.75.75 0 0 1 2.7 13.3l.7-.7a.75.75 0 0 1 1.06 0Z"/></svg>',
+  dark: '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M14.5 10.39A6.75 6.75 0 0 1 5.61 1.5a.75.75 0 0 0-.83-1.2 8 8 0 1 0 10.92 10.92.75.75 0 0 0-1.2-.83ZM8 14.5A6.5 6.5 0 0 1 4.16 2.76a8.25 8.25 0 0 0 9.08 9.08A6.47 6.47 0 0 1 8 14.5Z"/></svg>'
+};
+
+function paintToggle(){
+  const now = effectiveTheme(), next = now === 'dark' ? 'light' : 'dark';
+  document.getElementById('theme-icon').innerHTML = THEME_ICONS[next];
+  const btn = document.getElementById('theme-toggle');
+  btn.title = 'Switch to ' + next + ' mode';
+  btn.setAttribute('aria-label', 'Switch to ' + next + ' mode');
+}
+
+function applyTheme(choice){
+  document.documentElement.setAttribute('data-ui', choice);
+  try { localStorage.setItem(THEME_KEY, choice); } catch (_) {}
+  paintToggle();
+}
+
+if (storedTheme() === 'light') document.documentElement.setAttribute('data-ui', 'light');
+else document.documentElement.removeAttribute('data-ui');
+
+function setFreshness(text){
+  document.getElementById('freshness-text').textContent = text;
+}
+
+function parseCSV(text){
+  const rows = []; let row = [], cell = '', q = false;
+  text = text.replace(/^\ufeff/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){
+      if (c === '"'){ if (text[i + 1] === '"'){ cell += '"'; i++; } else q = false; }
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ','){ row.push(cell); cell = ''; }
+    else if (c === '\n'){ row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += c;
+  }
+  if (cell.length || row.length){ row.push(cell); rows.push(row); }
+  if (q) return { headers: [], rows: [], error: 'a quoted field is never closed, so the rest of the file could not be read' };
+  const clean = rows.filter(r => r.some(x => x.trim() !== ''));
+  if (!clean.length) return { headers: [], rows: [] };
+  return { headers: clean[0].map(h => h.trim()), rows: clean.slice(1) };
+}
+
+/* "2026-08-28" is parsed as UTC by the Date constructor, which lands on the
+   27th anywhere west of Greenwich. Parse plain dates as local instead. */
+function parseWhen(v){
+  const t = String(v == null ? '' : v).trim();
+  if (!t) return null;
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  m = t.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0));
+  const d = new Date(t);
+  return isNaN(d) ? null : d;
+}
+
+const FILES = { members: null, scans: null };
+const GUESS = {
+  name:  [/^(client )?name$/i, /full ?name/i, /^member$/i],
+  first: [/first ?name/i], last: [/last ?name/i],
+  id:    [/client ?id/i, /member ?id/i, /badge/i, /^id$/i, /barcode/i, /key ?fob/i, /fob/i, /card ?(no|num|#)/i],
+  join:  [/join/i, /start ?date/i, /created/i, /first ?visit/i, /sign.?up/i],
+  tier:  [/membership/i, /contract/i, /pricing ?option/i, /plan/i, /service/i],
+  rate:  [/rate/i, /price/i, /amount/i, /monthly/i, /^value$/i],
+  end:   [/cancel/i, /end ?date/i, /termination/i, /expir/i, /inactive ?date/i, /last ?day/i],
+  ref:   [/client ?id/i, /member ?id/i, /badge/i, /^id$/i, /barcode/i, /key ?fob/i, /fob/i, /card ?(no|num|#)/i, /name/i, /user/i],
+  when:  [/date ?\/? ?time/i, /timestamp/i, /scan/i, /^time$/i, /^date$/i, /entry/i, /check.?in/i]
+};
+function guessCol(headers, key){
+  for (const re of GUESS[key] || []){
+    const i = headers.findIndex(h => re.test(h));
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+const selHTML = (id, headers, sel, optional) =>
+  `<select id="${id}" style="background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:7px 9px;min-width:150px">
+    <option value="-1"${sel < 0 ? ' selected' : ''}>${optional ? '\u2014 none \u2014' : 'Choose a column\u2026'}</option>
+    ${headers.map((h, i) => `<option value="${i}"${i === sel ? ' selected' : ''}>${esc(h)}</option>`).join('')}
+  </select>`;
+
+function buildMapping(){
+  if (!FILES.members || !FILES.scans) return;
+  const M = FILES.members, S = FILES.scans;
+  const row = (label, hint, ctl) =>
+    `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="min-width:150px;font-size:12px;color:var(--text-2)">${esc(label)}<br><span class="cap" style="color:var(--muted);font-size:10.5px">${esc(hint)}</span></span>${ctl}</div>`;
+  document.getElementById('mapping-body').innerHTML =
+    `<div class="eyebrow" style="color:var(--text-2)">From your member file</div>` +
+    row('Member name', 'or pick first name below', selHTML('c-name', M.headers, guessCol(M.headers, 'name'), true)) +
+    row('First / last name', 'if the name is split in two', selHTML('c-first', M.headers, guessCol(M.headers, 'first'), true) + selHTML('c-last', M.headers, guessCol(M.headers, 'last'), true)) +
+    row('Member ID', 'used to match door scans', selHTML('c-id', M.headers, guessCol(M.headers, 'id'), true)) +
+    row('Join date', 'required', selHTML('c-join', M.headers, guessCol(M.headers, 'join'), false)) +
+    row('Membership', '', selHTML('c-tier', M.headers, guessCol(M.headers, 'tier'), true)) +
+    row('Monthly rate', 'blank falls back to the rates on the Growth screen', selHTML('c-rate', M.headers, guessCol(M.headers, 'rate'), true)) +
+    row('Cancellation date', 'optional, but churn and lifetime value need it', selHTML('c-end', M.headers, guessCol(M.headers, 'end'), true)) +
+    `<div class="eyebrow" style="color:var(--text-2);margin-top:8px">From your door-scan file</div>` +
+    row('Who scanned', 'required \u00b7 member ID or name', selHTML('c-ref', S.headers, guessCol(S.headers, 'ref'), false)) +
+    row('When', 'required \u00b7 date and time of the scan', selHTML('c-when', S.headers, guessCol(S.headers, 'when'), false));
+  document.getElementById('mapping').hidden = false;
+}
+
+function readFile(f, which, outId){
+  const out = document.getElementById(outId);
+  const r = new FileReader();
+  r.onload = () => {
+    const p = parseCSV(r.result);
+    if (p.error){ out.innerHTML = `<span style="color:var(--brand)">Couldn't read that file: ${esc(p.error)}.</span>`; return; }
+    if (!p.headers.length){ out.innerHTML = `<span style="color:var(--brand)">Couldn't read that file. Is it a CSV?</span>`; return; }
+    FILES[which] = p;
+    out.innerHTML = `<b>${esc(f.name)}</b> \u2014 ${fmtInt(p.rows.length)} rows, ${p.headers.length} columns.`;
+    buildMapping();
+  };
+  r.onerror = () => { out.innerHTML = `<span style="color:var(--brand)">Couldn't open that file.</span>`; };
+  r.readAsText(f);
+}
+
+function importData(){
+  const M = FILES.members, S = FILES.scans;
+  const gv = id => +document.getElementById(id).value;
+  const ci = { name:gv('c-name'), first:gv('c-first'), last:gv('c-last'), id:gv('c-id'),
+               join:gv('c-join'), tier:gv('c-tier'), rate:gv('c-rate'), end:gv('c-end') };
+  const cs = { ref:gv('c-ref'), when:gv('c-when') };
+  const warn = document.getElementById('import-warn');
+
+  const need = [[ci.join,'Join date'], [cs.ref,'Who scanned'], [cs.when,'When']].filter(x => x[0] < 0);
+  if (need.length){
+    warn.innerHTML = `<span style="color:var(--brand)">Pick a column for ${esc(need.map(x => x[1]).join(' and '))} before importing.</span>`;
+    return;
+  }
+  if ((ci.name < 0) && (ci.first < 0)){
+    warn.innerHTML = `<span style="color:var(--brand)">Pick either a full-name column or a first-name column.</span>`;
+    return;
+  }
+
+  // "Nakamura, Alexis" and "Alexis Nakamura" have to resolve to one person
+  const nameKey = v => String(v).toLowerCase().replace(/[^a-z0-9 ]+/g, ' ')
+    .split(/\s+/).filter(Boolean).sort().join(' ');
+
+  // Start from an empty rate table: the demo's tier names can collide with the
+  // owner's, and silently pricing his members off demo rates would be worse
+  // than having no rates at all.
+  const RATE_SAMPLES = Object.create(null);
+  const members = [], byKey = new Map(), dupNames = new Set();
+  let id = 1, badDates = 0;
+  for (const r of M.rows){
+    const nm = ci.name >= 0 ? (r[ci.name] || '').trim()
+             : [(r[ci.first] || '').trim(), (r[ci.last] || '').trim()].filter(Boolean).join(' ');
+    if (!nm) continue;
+    const jd = parseWhen(r[ci.join]);
+    if (!jd){ badDates++; continue; }
+    const parts = nm.split(/\s+/);
+    const tier = ci.tier >= 0 ? (r[ci.tier] || '').trim() || 'Membership' : 'Membership';
+    const rate = ci.rate >= 0 ? parseFloat(String(r[ci.rate] || '').replace(/[^0-9.]/g, '')) || 0 : 0;
+    const m = {
+      id: id++, first: parts[0], last: parts.slice(1).join(' ') || '',
+      name: nm, initials: (parts[0][0] || '?') + ((parts[1] || '')[0] || ''),
+      arch:'sporadic', archLabel:'their usual time', slots: [], coach:'August',
+      tier, rate, rateFixed: rate > 0 ? rate : null, join: startOfDay(jd), cancel: null, scans: []
+    };
+    if (ci.end >= 0){
+      const ed = parseWhen(r[ci.end]);
+      if (ed && ed.getTime() > m.join) m.cancel = startOfDay(ed);
+    }
+    (RATE_SAMPLES[tier] = RATE_SAMPLES[tier] || []); if (rate > 0) RATE_SAMPLES[tier].push(rate);
+    members.push(m);
+    let clash = false;
+    const claim = k => { if (byKey.has(k)) clash = true; else byKey.set(k, m); };
+    claim(nm.toLowerCase());
+    claim(nameKey(nm));
+    if (ci.id >= 0 && r[ci.id]) claim(String(r[ci.id]).trim().toLowerCase());
+    if (clash) dupNames.add(nm);
+  }
+
+  let matched = 0, unmatched = 0, badTs = 0;
+  for (const r of S.rows){
+    const raw = String(r[cs.ref] || '').trim();
+    const k = raw.toLowerCase();
+    const m = byKey.get(k) || byKey.get(nameKey(raw));
+    if (!m){ if (k) unmatched++; continue; }
+    const d = parseWhen(r[cs.when]);
+    if (!d){ badTs++; continue; }
+    m.scans.push(d.getTime()); matched++;
+  }
+  for (const m of members){ m.scans.sort((a, b) => a - b); if (m.scans.length && m.join > m.scans[0]) m.join = startOfDay(m.scans[0]); }
+
+  if (!members.length || !matched){
+    warn.innerHTML = `<span style="color:var(--brand)">Nothing imported \u2014 ${!members.length ? 'no member rows had a readable name and join date' : 'no scan rows matched a member'}. Check the column choices above.</span>`;
+    return;
+  }
+  // Take the median rate per tier rather than the last row seen, so one
+  // discounted or comped member cannot reprice the whole tier.
+  const NEW_RATES = Object.create(null);
+  for (const [tier, list] of Object.entries(RATE_SAMPLES))
+    NEW_RATES[tier] = list.length ? list.sort((a, b) => a - b)[list.length >> 1] : 0;
+  const priced = Object.values(NEW_RATES).filter(v => v > 0).sort((a, b) => a - b);
+  const fallback = priced.length ? priced[priced.length >> 1] : 150;
+  for (const k of Object.keys(NEW_RATES)) if (!NEW_RATES[k]) NEW_RATES[k] = fallback;
+  for (const m of members) if (!m.rate) m.rate = NEW_RATES[m.tier] || fallback;
+  RATES = NEW_RATES;
+  const noPrice = ci.rate < 0;
+  const noChurn = !members.some(m => m.cancel);
+
+  const earliest = Math.min(...members.flatMap(m => m.scans.length ? [m.scans[0]] : []));
+  // The member file carries the full join/cancel history even when the scan
+  // log only covers recent months, so cohorts run from the earliest join.
+  const firstJoin = members.reduce((a, m) => Math.min(a, m.join), Infinity);
+  DATA = { members, scanStart: earliest, simStart: earliest, coverage: firstJoin, source:'imported' };
+  warn.innerHTML = `Loaded <b>${fmtInt(members.length)} members</b> and <b>${fmtInt(matched)} scans</b>.` +
+    (unmatched ? ` ${fmtInt(unmatched)} scans didn't match a member.` : '') +
+    (badDates ? ` ${fmtInt(badDates)} member rows were skipped for an unreadable join date.` : '') +
+    (badTs ? ` ${fmtInt(badTs)} scans had an unreadable timestamp.` : '') +
+    (noPrice ? ` No rate column was mapped, so every membership is priced at ${fmtMoney(fallback)} until you set the real rates on the Growth screen.` : '') +
+    (dupNames.size ? ` ${fmtInt(dupNames.size)} member${dupNames.size === 1 ? ' shares a name or ID with another record' : 's share a name or ID with another record'}${ci.id >= 0 ? ', so their scans were matched on ID where possible' : '; their scans went to whichever record came first'}. Worth checking those.` : '') +
+    (noChurn ? ` Nobody in this file has a cancellation date, so churn, length of engagement and lifetime value cannot be calculated. Re-export including cancelled clients and map the cancellation date column.` : '');
+  STATE.contacted.clear();
+  const readAt = new Date();
+  const readTime = String(readAt.getHours()).padStart(2, '0') + ':' + String(readAt.getMinutes()).padStart(2, '0');
+  setFreshness(`Your data - ${fmtInt(members.length)} members, ${fmtInt(matched)} scans, read ${readTime}`);
+  refresh();
+  document.getElementById('importer').removeAttribute('open');
+}
+
+/* ------------------------------------------------------------- wiring --- */
+function refresh(){
+  recompute();
+  if (STATE.screen === 'action') renderAction();
+  if (STATE.screen === 'members') renderMembers();
+  if (STATE.screen === 'util')   renderUtil();
+  if (STATE.screen === 'growth') renderGrowth();
+  document.getElementById('tab-count').textContent = G.flagged.length;
+}
+function showScreen(name){
+  STATE.screen = name;
+  for (const s of document.querySelectorAll('.screen')) s.hidden = (s.id !== 'screen-' + name);
+  for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t.dataset.screen === name));
+  refresh();
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+document.addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (tab){ showScreen(tab.dataset.screen); return; }
+
+  const per = e.target.closest('[data-period]');
+  if (per){
+    STATE.period = per.dataset.period;
+    for (const b of document.querySelectorAll('[data-period]')) b.setAttribute('aria-pressed', String(b === per));
+    refresh(); return;
+  }
+
+  const chip = e.target.closest('[data-mf]');
+  if (chip){
+    STATE.mFilter = chip.dataset.mf;
+    for (const c of document.querySelectorAll('[data-mf]')) c.setAttribute('aria-pressed', String(c === chip));
+    renderMembers(); return;
+  }
+
+  const th = e.target.closest('th.sortable');
+  if (th){
+    const k = th.dataset.sort;
+    STATE.sort = { key: k, dir: STATE.sort.key === k ? -STATE.sort.dir : (k === 'name' ? 1 : k === 'risk' ? 1 : -1) };
+    renderMembers(); return;
+  }
+
+  const copy = e.target.closest('.act-copy');
+  if (copy){
+    const txt = copy.dataset.msg;
+    const done = () => { const o = copy.textContent; copy.textContent = 'Copied'; setTimeout(() => copy.textContent = o, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, done);
+    else { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select();
+           try { document.execCommand('copy'); } catch (_) {} ta.remove(); done(); }
+    e.stopPropagation(); return;
+  }
+
+  const dn = e.target.closest('.act-done');
+  if (dn){
+    const card = dn.closest('.call'), id = +card.dataset.id;
+    STATE.contacted.has(id) ? STATE.contacted.delete(id) : STATE.contacted.add(id);
+    renderAction(); e.stopPropagation(); return;
+  }
+
+  const snooze = e.target.closest('.act-snooze');
+  if (snooze){
+    const card = snooze.closest('.call'), id = +card.dataset.id;
+    STATE.snoozed = STATE.snoozed || new Set();
+    STATE.snoozed.add(id);
+    renderAction(); e.stopPropagation(); return;
+  }
+
+  const tr = e.target.closest('#m-body tr');
+  if (tr && tr.dataset.id){ openMember(+tr.dataset.id); return; }
+
+  const card = e.target.closest('.call');
+  if (card && !e.target.closest('button')){ openMember(+card.dataset.id); return; }
+
+  if (e.target.id === 'calls-more'){ STATE.showAll = !STATE.showAll; renderAction(); return; }
+  if (e.target.id === 'theme-toggle' || e.target.closest('#theme-toggle')){
+    applyTheme(effectiveTheme() === 'dark' ? 'light' : 'dark');
+    try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
+    return;
+  }
+  if (e.target.id === 'btn-import'){ document.getElementById('importer').setAttribute('open', ''); return; }
+  if (e.target.id === 'import-x' || e.target.id === 'importer'){ document.getElementById('importer').removeAttribute('open'); return; }
+  if (e.target.id === 'drawer-x' || e.target.id === 'drawer'){ document.getElementById('drawer').removeAttribute('open'); return; }
+  if (e.target.id === 'do-import'){ importData(); return; }
+  if (e.target.id === 'reset-demo'){
+    RATES = Object.assign({}, TIERS);
+    DATA = buildDemoData(); STATE.contacted.clear();
+    document.getElementById('import-warn').textContent = 'Back on the demo data.';
+    setFreshness('Demo data - generated just now');
+    refresh(); document.getElementById('importer').removeAttribute('open'); return;
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){
+    document.getElementById('drawer').removeAttribute('open');
+    document.getElementById('importer').removeAttribute('open');
+  }
+});
+
+document.addEventListener('input', e => {
+  if (e.target.id === 'm-search'){ STATE.mSearch = e.target.value; renderMembers(); }
+  if (e.target.dataset && e.target.dataset.tier){
+    RATES[e.target.dataset.tier] = Math.max(0, +e.target.value || 0);
+    clearTimeout(window.__rt);
+    window.__rt = setTimeout(() => {
+      const tier = document.activeElement && document.activeElement.dataset.tier;
+      refresh();
+      if (tier){
+        const again = [...document.querySelectorAll('[data-tier]')].find(el => el.dataset.tier === tier);
+        if (again) again.focus();
+      }
+    }, 350);
+  }
+});
+
+for (const [zone, input, which, out] of [['dz-members','f-members','members','dz-members-out'], ['dz-scans','f-scans','scans','dz-scans-out']]){
+  const z = document.getElementById(zone);
+  z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('over'); });
+  z.addEventListener('dragleave', () => z.classList.remove('over'));
+  z.addEventListener('drop', e => {
+    e.preventDefault(); z.classList.remove('over');
+    const f = e.dataTransfer.files[0]; if (f) readFile(f, which, out);
+  });
+  document.getElementById(input).addEventListener('change', e => { const f = e.target.files[0]; if (f) readFile(f, which, out); });
+}
+
+document.getElementById('logo').src = LOGO_SRC;
+paintToggle();
+setFreshness('Demo data - generated just now');
+
+/* The header wraps at narrow widths, so the sticky offset for the tab bar has
+   to be measured rather than assumed. */
+(function trackHeader(){
+  const bar = document.querySelector('.topbar');
+  const sync = () => document.documentElement.style.setProperty('--topbar-h', bar.offsetHeight + 'px');
+  sync();
+  if (window.ResizeObserver) new ResizeObserver(sync).observe(bar);
+  addEventListener('resize', sync);
+})();
+showScreen('action');
+
+/* --- sanity checks: if any of these fire, a number on screen is lying --- */
+(function selfCheck(){
+  const errs = [];
+  if (G.flagged.length > G.active.length) errs.push('flagged > active');
+  const mrrSum = G.active.reduce((s, m) => s + m.rate, 0);
+  if (Math.abs(mrrSum - G.mrr) > 1) errs.push('MRR does not equal the sum of active rates');
+  if (Math.abs(G.arm * G.leg - G.ltv) > 1) errs.push('LTV != ARM x LEG');
+  const heatTotal = U.grid.flat().reduce((a, b) => a + b, 0);
+  if (heatTotal !== U.total) errs.push('heatmap cells do not sum to period scans');
+  if (G.active.some(m => m.cancel)) errs.push('cancelled member in the active set');
+  if (errs.length) console.error('EVSC self-check FAILED:', errs);
+  else console.log('EVSC self-check passed \u00b7', G.active.length, 'active \u00b7', G.all.length, 'records \u00b7',
+                   G.all.reduce((s, m) => s + m.scans.length, 0).toLocaleString(), 'scans');
+})();
+</script>
