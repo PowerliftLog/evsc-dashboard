@@ -53,6 +53,17 @@
   --h4: #2A6C93;
   --h5: #4A93BE;
   --h6: #7DBBDD;
+
+  /* ordered buckets: a single-hue ramp, because the old threshold colouring gave
+     two different values the same colour */
+  --ord-1: #2A6C93;
+  --ord-2: #4A93BE;
+  --ord-3: #7DBBDD;
+  --ord-4: #B8DCF2;
+  /* a negative data series has to read as red; the orange-leaning --critical is
+     for severity badges, where it needs to stay clear of the brand crimson */
+  --negative: #FF5A5A;
+  --tip-dim: #5A4F50;   /* dim text ON the inverted tooltip surface */
 }
 
 :root[data-ui="light"] {
@@ -92,6 +103,13 @@
   --h4: #6BAEDB;
   --h5: #3B8EC4;
   --h6: #1D6FA8;
+
+  --ord-1: #6BAEDB;
+  --ord-2: #3B8EC4;
+  --ord-3: #1D6FA8;
+  --ord-4: #0F4C78;
+  --negative: #BF3C1B;
+  --tip-dim: #B4A9AA;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -281,20 +299,44 @@ main { padding-block: 24px 48px; }
 .card-h { padding: 16px 16px 12px; border-bottom: 1px solid var(--line-soft); }
 .card-b { padding: 16px; }
 
+/* The lede is the first thing read, so it gets a real structure rather than a
+   paragraph: greeting, then the one thing to act on, then the supporting facts
+   as a separated row. It deliberately no longer restates every KPI tile. */
 .narrative {
-  display: flex;
-  align-items: flex-start;
-  gap: 24px;
-  padding: 16px;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  background: var(--sunken);
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--raised);
 }
-.narrative .dt { display: flex; flex: none; flex-direction: column; gap: 4px; }
-.narrative .hello { font-size: 19px; font-weight: 600; letter-spacing: -.011em; line-height: 1.3; }
+.narrative .greet { display: flex; flex-direction: column; gap: 4px; }
+.narrative .hello { font-size: 20px; font-weight: 600; letter-spacing: -.015em; line-height: 1.25; }
 .narrative .date { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
-.narrative .txt { min-width: 0; flex: 1; color: var(--text-2); font-size: 14px; line-height: 1.5; }
-.narrative .txt b { color: var(--text); font-weight: 600; }
+.narrative .lede { min-width: 0; }
+.narrative .headline {
+  max-width: 62ch;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: -.006em;
+  line-height: 1.55;
+}
+.narrative .headline b { font-weight: 600; }
+.narrative .headline .at-risk { color: var(--critical); font-weight: 600; }
+.narrative .facts {
+  display: flex;
+  gap: 6px 18px;
+  margin: 14px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line-soft);
+  list-style: none;
+  flex-wrap: wrap;
+}
+.narrative .facts li { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.narrative .facts li b { color: var(--text-2); font-weight: 600; }
 
 .kpis { grid-template-columns: repeat(auto-fit, minmax(212px, 1fr)); }
 .kpi { display: flex; min-width: 0; flex-direction: column; gap: 8px; padding: 16px; border-top: 1px solid var(--line); background: var(--raised); }
@@ -402,7 +444,7 @@ td.r, th.r { text-align: right; }
 
 .tooltip { position: fixed; z-index: 99; max-width: 260px; padding: 8px 11px; border: 1px solid var(--line-firm); border-radius: var(--r); background: var(--text); color: var(--bg); font-size: 12.5px; line-height: 1.45; opacity: 0; pointer-events: none; transition: opacity 120ms ease-out; }
 .tooltip b { color: var(--bg); }
-.tooltip .tk { color: var(--muted); }
+.tooltip .tk { color: var(--tip-dim); }
 .empty { padding: 32px 16px; color: var(--muted); font-size: 13px; text-align: center; }
 .empty strong { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 15px; font-weight: 600; }
 .note { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
@@ -417,6 +459,18 @@ td.r, th.r { text-align: right; }
 .kv dd { margin: 0; text-align: right; }
 .dropzone { padding: 24px; border: 1px dashed var(--line-firm); border-radius: var(--r-lg); background: var(--sunken); color: var(--text-2); font-size: 12.5px; text-align: center; transition: background-color 140ms ease-out, border-color 140ms ease-out; }
 .dropzone.over { border-color: var(--brand); background: var(--brand-wash); }
+/* hidden from sight but still reachable by keyboard, unlike [hidden] */
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.visually-hidden:focus-visible + span, label:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
+/* rows and cards that open a detail view are real controls, so they look and behave like it */
+tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 
 @media (max-width: 720px) {
   .topbar { position: static; }
@@ -437,15 +491,21 @@ td.r, th.r { text-align: right; }
   #screen-action > .sec:nth-of-type(4) { order: 4; }
   #screen-action > .sec-wins,
   #screen-action > .sec:nth-of-type(5) { order: 5; }
-  .narrative { flex-direction: column; gap: 12px; }
+  .narrative { grid-template-columns: 1fr; gap: 16px; padding: 16px; }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .call { grid-template-columns: 26px minmax(0, 1fr); padding: 13px 14px; }
   .call .side { grid-column: 1 / -1; align-items: stretch; }
   .call .acts { justify-content: flex-start; }
-  .tablewrap { display: none; }
+  /* only the roster has a card replacement; other tables stay scrollable */
+  #screen-members .tablewrap { display: none; }
   .mcards { display: flex; flex-direction: column; gap: 12px; }
   .filters .search { width: 100%; max-width: none; flex-basis: 100%; }
   .drawer-p { border-left: 0; }
+}
+
+@media (max-width: 400px) {
+  /* the chart grids ask for 340px tracks, which overflow a 320px screen */
+  #screen-growth .grid[style*="340px"] { grid-template-columns: minmax(0, 1fr) !important; }
 }
 
 @media (max-width: 440px) {
@@ -503,13 +563,16 @@ td.r, th.r { text-align: right; }
 
   <!-- &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; ACTION CENTER &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; -->
   <section class="screen" id="screen-action" role="tabpanel" aria-label="Action Center">
-    <div class="narrative">
-      <div class="dt">
-        <span class="hello" id="nar-hello">&#8212;</span>
-        <span class="date" id="nar-date">&#8212;</span>
+    <section class="narrative" aria-label="Today at a glance">
+      <div class="greet">
+        <span class="hello" id="nar-hello">&mdash;</span>
+        <span class="date" id="nar-date">&mdash;</span>
       </div>
-      <p class="txt" id="nar-text">&#8212;</p>
-    </div>
+      <div class="lede">
+        <p class="headline" id="nar-headline">&mdash;</p>
+        <ul class="facts" id="nar-facts"></ul>
+      </div>
+    </section>
 
     <div class="grid kpis sec" id="kpis"></div>
 
@@ -688,7 +751,7 @@ td.r, th.r { text-align: right; }
     <div class="sec" style="margin-top:0">
       <div class="eyebrow" style="margin-bottom:8px">1 &#183; Members</div>
       <div class="dropzone" id="dz-members">
-        Drop a Mindbody client export here, or <label style="color:var(--brand); cursor:pointer; text-decoration:underline">browse<input type="file" id="f-members" accept=".csv,text/csv" hidden></label>
+        Drop a Mindbody client export here, or <label style="color:var(--brand); cursor:pointer; text-decoration:underline">browse<input type="file" id="f-members" accept=".csv,text/csv" class="visually-hidden"></label>
         <div class="note" style="margin-top:8px">Needs: a name, a join date, and a membership or rate column.</div>
       </div>
       <div id="dz-members-out" class="note" style="margin-top:8px"></div>
@@ -697,7 +760,7 @@ td.r, th.r { text-align: right; }
     <div class="sec">
       <div class="eyebrow" style="margin-bottom:8px">2 &#183; Door scans</div>
       <div class="dropzone" id="dz-scans">
-        Drop your access-control scan log here, or <label style="color:var(--brand); cursor:pointer; text-decoration:underline">browse<input type="file" id="f-scans" accept=".csv,text/csv" hidden></label>
+        Drop your access-control scan log here, or <label style="color:var(--brand); cursor:pointer; text-decoration:underline">browse<input type="file" id="f-scans" accept=".csv,text/csv" class="visually-hidden"></label>
         <div class="note" style="margin-top:8px">Needs: a member identifier and a scan timestamp. One row per entry.</div>
       </div>
       <div id="dz-scans-out" class="note" style="margin-top:8px"></div>
@@ -997,6 +1060,9 @@ function buildDemoData(){
    from the demo generator or a CSV the owner dropped in.
    ========================================================================= */
 
+/* Set from the loaded dataset. null means "assume full coverage" (demo data). */
+const SCAN_COVERAGE = { from: null };
+
 const WEEKS_BASELINE = 8;      // weeks 3\u201310 back form the personal baseline
 const BASELINE_SKIP  = 2;      // the last 2 weeks are what we're testing
 const GHOST_DAYS     = 14;
@@ -1014,6 +1080,7 @@ const hourOf = ts => new Date(ts).getHours();
 function weekBuckets(scans, weeks){
   const out = new Array(weeks).fill(0);
   for (const t of scans){
+    if (t >= TODAY + DAY) continue;          // a future scan is not a visit yet
     const i = Math.floor((TODAY + DAY - t) / WEEK);
     if (i >= 0 && i < weeks) out[i]++;
   }
@@ -1044,13 +1111,17 @@ function analyzeMember(m){
   const active  = joined && !endedAt;
 
   const wk     = weekBuckets(m.scans, 26);
-  const past   = m.scans.filter(t => t <= TODAY + DAY);
+  const past   = m.scans.filter(t => t < TODAY + DAY);
   const last   = past.length ? past[past.length - 1] : null;
   const daysSince = last === null ? Infinity : Math.max(0, Math.floor((TODAY + DAY - last) / DAY));
   const endRef = endedAt || TODAY;
   const tenureDays = Math.max(0, Math.floor((endRef - m.join) / DAY));
   const tenureMo   = Math.max(0, monthsBetween(m.join, endRef));
 
+  // Weeks before the scan export begins are unobserved, not empty. Treating them
+  // as zero turned five-year members into "barely uses it" on a 14-day export.
+  const covered = SCAN_COVERAGE.from === null
+    || SCAN_COVERAGE.from <= TODAY + DAY - (BASELINE_SKIP + WEEKS_BASELINE) * WEEK;
   const baseline = median(wk.slice(BASELINE_SKIP, BASELINE_SKIP + WEEKS_BASELINE));
   const current  = (wk[0] + wk[1]) / 2;
   const drop     = baseline > 0 ? Math.max(0, Math.min(1, (baseline - current) / baseline)) : 0;
@@ -1058,6 +1129,7 @@ function analyzeMember(m){
 
   let risk = 'green';
   if (!active)                      risk = 'gone';
+  else if (!covered)                risk = 'unknown';
   else if (tenureDays < 75)         risk = 'new';
   else if (baseline < 0.5)          risk = 'low';
   else if (daysSince >= GHOST_DAYS && baseline >= 1) risk = 'red';
@@ -1067,13 +1139,14 @@ function analyzeMember(m){
 
   const rate   = rateOf(m);
   const riskW  = risk === 'red' ? 3 : risk === 'amber' ? 1.6 : risk === 'low' ? .7 : 0;
+  const baselineKnown = covered;
   const tenW   = .8 + Math.min(tenureMo, 36) / 36 * .8;
   const score  = riskW * (rate / 150) * tenW * (1 + drop);
   const paid   = Math.max(1, Math.round(tenureMo)) * rate;
 
   return Object.assign({}, m, {
     active, endedAt, wk, last, daysSince, tenureDays, tenureMo,
-    baseline, current, drop, priorGap, risk, score, paid, rate
+    baseline, current, drop, priorGap, risk, score, paid, rate, baselineKnown
   });
 }
 
@@ -1278,7 +1351,7 @@ function analyzeGym(data, period){
     const S = sd.getTime(), E = Math.min(ed.getTime(), TODAY + DAY);
 
     const activeEnd = all.filter(m => m.join < E && (!m.endedAt || m.endedAt >= E));
-    const cohort    = all.filter(m => m.join < S && (!m.endedAt || m.endedAt >= S));
+    const cohort    = all.filter(m => m.join < S && (!m.endedAt || m.endedAt > S));
     const lost      = cohort.filter(m => m.endedAt && m.endedAt >= S && m.endedAt < E).length;
     const j = all.filter(m => m.join >= S && m.join < E).length;
     const c = all.filter(m => m.endedAt && m.endedAt >= S && m.endedAt < E).length;
@@ -1322,18 +1395,39 @@ function analyzeUtilization(g){
   for (let t = from; t < to; t += DAY){ dayCount[new Date(t).getDay()]++; calDays++; }
 
   let total = 0;
-  const occSum = new Array(SLOTS).fill(0);
   const stay = STAY_MIN / SLOT_MIN;
+  // Occupancy per actual date, so a genuinely full Monday is not diluted by six
+  // quiet days. The previous version averaged across the window and still called
+  // the result a peak.
+  const byDate = new Map();
 
   for (const m of g.all) for (const t of m.scans){
     if (t < from || t >= to) continue;
     const d = new Date(t);
     grid[d.getDay()][d.getHours()]++;
     total++;
-    // occupy the next 70 minutes
-    const s0 = Math.floor((d.getHours() * 60 + d.getMinutes()) / SLOT_MIN);
-    for (let k = 0; k < stay; k++){ const s = s0 + k; if (s < SLOTS) occSum[s]++; }
+    const key = startOfDay(t);
+    let slots = byDate.get(key);
+    if (!slots){ slots = new Float32Array(SLOTS); byDate.set(key, slots); }
+    // a session occupies the floor from arrival for STAY_MIN, so start at the
+    // arriving slot rather than the floor of it and include the trailing part
+    const mins = d.getHours() * 60 + d.getMinutes();
+    const first = Math.floor(mins / SLOT_MIN);
+    const last  = Math.floor((mins + STAY_MIN - 1) / SLOT_MIN);
+    for (let sIdx = first; sIdx <= last && sIdx < SLOTS; sIdx++) slots[sIdx]++;
   }
+
+  // the busiest single moment actually observed, and the typical daily peak
+  let maxOcc = 0, maxOccSlot = 0, maxOccDate = null;
+  const dailyPeaks = [];
+  for (const [key, slots] of byDate){
+    let dayMax = 0, daySlot = 0;
+    for (let i = 0; i < SLOTS; i++) if (slots[i] > dayMax){ dayMax = slots[i]; daySlot = i; }
+    dailyPeaks.push(dayMax);
+    if (dayMax > maxOcc){ maxOcc = dayMax; maxOccSlot = daySlot; maxOccDate = key; }
+  }
+  dailyPeaks.sort((a, b) => a - b);
+  const typicalPeak = dailyPeaks.length ? dailyPeaks[Math.floor(dailyPeaks.length / 2)] : 0;
 
   const avg = grid.map((row, d) => row.map(v => dayCount[d] ? v / dayCount[d] : 0));
 
@@ -1345,10 +1439,6 @@ function analyzeUtilization(g){
   const hourlyAvg = hourly.map(v => v / daysPresent);
 
   // Concurrency comes from the timestamps themselves rather than a fudge factor.
-  const occ = occSum.map(v => v / Math.max(1, calDays));
-  let maxOcc = 0, maxOccSlot = 0;
-  for (let i = 0; i < SLOTS; i++) if (occ[i] > maxOcc){ maxOcc = occ[i]; maxOccSlot = i; }
-
   const empty = total === 0;
   let peak = 0, peakH = 0, dead = Infinity, deadH = 0;
   for (let h = 5; h < 23; h++){
@@ -1366,9 +1456,11 @@ function analyzeUtilization(g){
   let peakDay = 0, pdv = -1;
   for (let d = 0; d < 7; d++){ const s = avg[d].reduce((a, b) => a + b, 0); if (s > pdv){ pdv = s; peakDay = d; } }
 
+  // Raw counts, not weekday averages: this is billed as a share of training, and
+  // an unequal number of Mondays and Fridays would otherwise skew it.
   const share = (lo, hi) => {
     let p = 0, a = 0;
-    for (let d = 1; d <= 5; d++) for (let h = 0; h < 24; h++){ a += avg[d][h]; if (h >= lo && h <= hi) p += avg[d][h]; }
+    for (let d = 1; d <= 5; d++) for (let h = 0; h < 24; h++){ a += grid[d][h]; if (h >= lo && h <= hi) p += grid[d][h]; }
     return a ? p / a : 0;
   };
 
@@ -1399,9 +1491,10 @@ function analyzeUtilization(g){
   }).sort((a, b) => (a.h * 60 + a.m) - (b.h * 60 + b.m));
 
   const maxCell = Math.max(0, ...avg.flat());
-  return { grid, avg, dayCount, calDays, daysPresent, total, empty, hourlyAvg, occ,
+  return { grid, avg, dayCount, calDays, daysPresent, total, empty, hourlyAvg,
            peak, peakH, dead, deadH, peakDay, peakCell,
-           maxOcc, maxOccSlot, maxOccTime: fmtTime(Math.floor(maxOccSlot / 6), (maxOccSlot % 6) * 10),
+           maxOcc, typicalPeak, maxOccSlot, maxOccDate,
+           maxOccTime: fmtTime(Math.floor(maxOccSlot / 6), (maxOccSlot % 6) * 10),
            inPeakWindow: share(16, 19), offPeak: share(9, 15), classes, maxCell };
 }
 
@@ -1521,11 +1614,11 @@ function lineChart(el, cfg){
   for (let v = min; v <= max + step * 1e-6; v += step){
     const yy = py(v);
     g += `<line x1="${P.l}" x2="${W - P.r}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`;
-    g += `<text x="${P.l - 8}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="Montserrat,sans-serif">${esc(cfg.yFmt ? cfg.yFmt(v) : Math.round(v))}</text>`;
+    g += `<text x="${P.l - 8}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="IBM Plex Sans, ui-sans-serif, sans-serif">${esc(cfg.yFmt ? cfg.yFmt(v) : Math.round(v))}</text>`;
   }
   const xstep = n > 9 ? 2 : 1;
   for (let i = 0; i < n; i += xstep)
-    g += `<text x="${px(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="Montserrat,sans-serif">${esc(labels[i])}</text>`;
+    g += `<text x="${px(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="IBM Plex Sans, ui-sans-serif, sans-serif">${esc(labels[i])}</text>`;
 
   let paths = '';
   for (const s of series){
@@ -1575,13 +1668,13 @@ function barChart(el, cfg){
   for (let v = 0; v <= max + nb.step * 1e-6; v += nb.step){
     const yy = py(v);
     g += `<line x1="${P.l}" x2="${W - P.r}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="var(--grid)"/>`;
-    g += `<text x="${P.l - 8}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="Montserrat,sans-serif">${esc(cfg.yFmt ? cfg.yFmt(v) : Math.round(v))}</text>`;
+    g += `<text x="${P.l - 8}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="IBM Plex Sans, ui-sans-serif, sans-serif">${esc(cfg.yFmt ? cfg.yFmt(v) : Math.round(v))}</text>`;
   }
   let bars = '';
   d.forEach((x, i) => {
     const cx = P.l + iw * i + iw / 2, h = Math.max(2, H - P.b - py(x.value));
     bars += `<rect class="hit" data-i="${i}" x="${(cx - bw / 2).toFixed(1)}" y="${py(x.value).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${x.color || cfg.color || 'var(--s1)'}"${x.op ? ` opacity="${x.op}"` : ''}/>`;
-    bars += `<text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="Montserrat,sans-serif">${esc(x.label)}</text>`;
+    bars += `<text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="IBM Plex Sans, ui-sans-serif, sans-serif">${esc(x.label)}</text>`;
   });
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block" role="img" aria-label="${esc(cfg.aria || '')}">${g}${bars}</svg>`;
   el.querySelector('svg').addEventListener('mousemove', e => {
@@ -1604,7 +1697,7 @@ function groupedBars(el, cfg){
   for (let v = 0; v <= max + nb.step * 1e-6; v += nb.step){
     const yy = py(v);
     g += `<line x1="${P.l}" x2="${W - P.r}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="var(--grid)"/>`;
-    g += `<text x="${P.l - 8}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="Montserrat,sans-serif">${Math.round(v)}</text>`;
+    g += `<text x="${P.l - 8}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="IBM Plex Sans, ui-sans-serif, sans-serif">${Math.round(v)}</text>`;
   }
   let bars = '';
   d.forEach((x, i) => {
@@ -1613,7 +1706,7 @@ function groupedBars(el, cfg){
     bars += `<rect x="${(cx - bw - 1).toFixed(1)}" y="${py(x.a).toFixed(1)}" width="${bw}" height="${ha.toFixed(1)}" rx="3" fill="${cfg.colorA}"/>`;
     bars += `<rect x="${(cx + 1).toFixed(1)}" y="${py(x.b).toFixed(1)}" width="${bw}" height="${hb.toFixed(1)}" rx="3" fill="${cfg.colorB}"/>`;
     bars += `<rect class="hit" data-i="${i}" x="${(cx - iw / 2).toFixed(1)}" y="${P.t}" width="${iw.toFixed(1)}" height="${H - P.t - P.b}" fill="transparent"/>`;
-    bars += `<text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="Montserrat,sans-serif">${esc(x.label)}</text>`;
+    bars += `<text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="IBM Plex Sans, ui-sans-serif, sans-serif">${esc(x.label)}</text>`;
   });
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block" role="img" aria-label="${esc(cfg.aria || '')}">${g}${bars}</svg>` +
     legendHTML([{ name: cfg.nameA, color: cfg.colorA }, { name: cfg.nameB, color: cfg.colorB }]);
@@ -1631,10 +1724,11 @@ const ICONS = {
   amber: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm0 3a1 1 0 0 1 1 1v3.4a1 1 0 1 1-2 0V5a1 1 0 0 1 1-1Zm0 6.6a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2Z"/></svg>',
   green: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm3.5 5.1-4 4.4a.9.9 0 0 1-1.3.05L4.4 8.8a.9.9 0 0 1 1.2-1.3l1.1 1 3.4-3.7a.9.9 0 1 1 1.4 1.3Z"/></svg>',
   low:   '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 7h12v2H2z"/></svg>',
+  unknown: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm0 10.4a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm0-7.6c1.5 0 2.6 1 2.6 2.4 0 1.1-.6 1.6-1.3 2.1-.5.4-.7.6-.7 1.1a.6.6 0 0 1-1.2 0c0-1 .5-1.5 1.1-2 .6-.4.9-.7.9-1.2 0-.7-.6-1.2-1.4-1.2s-1.4.5-1.4 1.2a.6.6 0 0 1-1.2 0C5.4 4.8 6.5 3.8 8 3.8Z"/></svg>',
   new:   '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.6 9.9 5.6l4.4.6-3.2 3.1.8 4.4L8 11.6l-3.9 2.1.8-4.4L1.7 6.2l4.4-.6L8 1.6Z"/></svg>'
 };
-const RISK_LABEL = { red:'At risk', amber:'Slipping', green:'Steady', low:'Barely uses it', new:'New', gone:'Cancelled' };
-const RISK_CLASS = { red:'pill-red', amber:'pill-amber', green:'pill-green', low:'pill-new', new:'pill-new', gone:'pill-new' };
+const RISK_LABEL = { red:'At risk', amber:'Slipping', green:'Steady', low:'Barely uses it', new:'New', gone:'Cancelled', unknown:'Not enough history' };
+const RISK_CLASS = { red:'pill-red', amber:'pill-amber', green:'pill-green', low:'pill-new', new:'pill-new', gone:'pill-new', unknown:'pill-new' };
 function riskPill(risk, text){
   return `<span class="pill ${RISK_CLASS[risk]}">${ICONS[risk] || ''}${esc(text || RISK_LABEL[risk])}</span>`;
 }
@@ -1656,7 +1750,7 @@ let G, U, L, WEEKLY;
 const STATE = {
   period: 'week', screen: 'action',
   mFilter: 'all', mSearch: '', sort: { key: 'risk', dir: 1 },
-  showAll: false, contacted: new Set(), snoozed: new Set()
+  showAll: false, contacted: new Set(), snoozed: new Map()
 };
 
 const OWNER = 'August';          // this dashboard is built for the owner to read
@@ -1727,12 +1821,25 @@ function callCard(a, rank, why, msg, klass){
 }
 
 /* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 ACTION CENTER \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
+/* Everything on this screen counts the same people: flagged, minus anyone
+   snoozed and still inside their snooze window. */
+function isSnoozed(id){
+  STATE.snoozed = STATE.snoozed || new Map();
+  const until = STATE.snoozed.get(id);
+  if (!until) return false;
+  if (until > Date.now()) return true;
+  STATE.snoozed.delete(id);      // the seven days are up
+  return false;
+}
+function needsCall(){ return G.flagged.filter(m => !isSnoozed(m.id)); }
+
 function renderAction(){
-  STATE.snoozed = STATE.snoozed || new Set();
   const P = PERIODS[STATE.period];
-  const red = G.flagged.filter(m => m.risk === 'red').length;
-  const amber = G.flagged.filter(m => m.risk === 'amber').length;
-  const lowUse = G.flagged.filter(m => m.risk === 'low').length;
+  const active = needsCall();
+  const atRiskRevenue = active.reduce((sum, m) => sum + m.rate, 0);
+  const red = active.filter(m => m.risk === 'red').length;
+  const amber = active.filter(m => m.risk === 'amber').length;
+  const lowUse = active.filter(m => m.risk === 'low').length;
   const now = new Date(TODAY);
 
   const hr = new Date().getHours();
@@ -1745,15 +1852,29 @@ function renderAction(){
   const peakDayName = DAYNAMES[U.peakCell.d];
   const vDelta = G.visitsPrev ? (G.visits - G.visitsPrev) / G.visitsPrev * 100 : 0;
 
-  document.getElementById('nar-text').innerHTML =
-    `<b>${G.active.length} active members</b>, ${G.netChange >= 0 ? 'up' : 'down'} <b>${Math.abs(G.netChange)}</b> over ${P.label} on ${G.joined} join${G.joined === 1 ? '' : 's'} and ${G.cancelled} cancellation${G.cancelled === 1 ? '' : 's'}. ` +
-    `The floor took <b>${fmtInt(G.visits)} scans</b>, ${vDelta >= 0 ? 'up' : 'down'} ${Math.abs(Math.round(vDelta))}% on the ${P.days} days before. ` +
-    `<b>${red} member${red === 1 ? ' has' : 's have'} gone quiet</b>, ${amber} more are slipping` +
-    (lowUse ? `, and ${lowUse} ${lowUse === 1 ? 'is' : 'are'} paying for a membership they barely use` : '') +
-    `. That group is ${fmtMoney(G.atRiskRevenue)} a month. ` +
-    (U.empty
-      ? `No scans in this window yet.`
-      : `Your busiest slot is ${peakDayName} at ${fmtTime(U.peakCell.h, 0)}, about ${Math.round(U.peakCell.v)} people through the door; ${fmtTime(U.deadH, 0)} is your deadest hour.`);
+  /* The headline says the one thing worth acting on. The facts row carries the
+     context. Neither repeats what the KPI tiles already show underneath. */
+  const quiet = red === 1 ? '1 member has gone quiet' : `${red} members have gone quiet`;
+  const slipping = amber
+    ? `, and ${amber} more ${amber === 1 ? 'is' : 'are'} slipping`
+    : '';
+  const barely = lowUse
+    ? `${lowUse} ${lowUse === 1 ? 'is' : 'are'} paying for a membership they barely use. `
+    : '';
+
+  document.getElementById('nar-headline').innerHTML = active.length
+    ? `<span class="at-risk">${esc(quiet)}</span>${esc(slipping)}. ` +
+      `That is <b>${fmtMoney(atRiskRevenue)} a month</b> of membership worth a phone call. ` +
+      esc(barely)
+    : `Nobody is slipping against their own normal right now. Worth enjoying.`;
+
+  const facts = [
+    `<b>${fmtInt(G.active.length)}</b> active members`,
+    `${G.netChange >= 0 ? 'Up' : 'Down'} <b>${Math.abs(G.netChange)}</b> ${esc(P.label)} on ${G.joined} join${G.joined === 1 ? '' : 's'} and ${G.cancelled} cancellation${G.cancelled === 1 ? '' : 's'}`,
+    `<b>${fmtInt(G.visits)}</b> door scans, ${vDelta >= 0 ? 'up' : 'down'} ${Math.abs(Math.round(vDelta))}%`
+  ];
+  if (!U.empty) facts.push(`Busiest ${esc(peakDayName)} at ${esc(fmtTime(U.peakCell.h, 0))}, quietest ${esc(fmtTime(U.deadH, 0))}`);
+  document.getElementById('nar-facts').innerHTML = facts.map(f => `<li>${f}</li>`).join('');
 
   const mPrev = G.months[G.months.length - 2] || G.months[0];
   document.getElementById('kpis').innerHTML =
@@ -1765,20 +1886,20 @@ function renderAction(){
           delta: Math.round(vDelta), deltaText: Math.abs(Math.round(vDelta)) + '%',
           spark: sparkline(WEEKLY, { w: 168, h: 30, color:'var(--s1)' }),
           foot: `${fmt1(G.visits / Math.max(1, G.active.length))} per member \u00b7 13-week trend` }) +
-    kpi({ label:'Need a call', value: fmtInt(G.flagged.length), unit:'members',
-          foot: `<span style="color:var(--critical)">${fmtMoney(G.atRiskRevenue)}/mo</span> of revenue \u00b7 ${Math.round(G.flagged.length / Math.max(1, G.active.length) * 100)}% of the roster` }) +
+    kpi({ label:'Need a call', value: fmtInt(active.length), unit:'members',
+          foot: `<span style="color:var(--critical)">${fmtMoney(atRiskRevenue)}/mo</span> of revenue \u00b7 ${Math.round(active.length / Math.max(1, G.active.length) * 100)}% of the roster` }) +
     kpi({ label:'Monthly recurring revenue', value: fmtMoney(G.mrr),
           delta: G.mrr - mPrev.mrr, deltaText: fmtMoney(Math.abs(G.mrr - mPrev.mrr)),
           spark: sparkline(G.months.map(m => m.mrr), { w: 168, h: 30, color:'var(--s1)' }),
           foot: `${fmtMoney(G.arm)} average per member` });
 
   // ---- call list
-  const list = G.flagged.filter(a => !STATE.snoozed.has(a.id)).sort((a, b) => b.score - a.score);
+  const list = active.slice().sort((a, b) => b.score - a.score);
   const shown = STATE.showAll ? list : list.slice(0, 8);
   document.getElementById('calls').innerHTML = shown.length
     ? shown.map((a, i) => callCard(a, i + 1, reasonFor(a), messageFor(a), 'r-' + (a.risk === 'low' ? 'amber' : a.risk))).join('')
     : G.flagged.length
-      ? `<div class="card empty"><strong>Call list snoozed</strong>Use \u201cshow them\u201d below whenever you're ready to bring everyone back.</div>`
+      ? `<div class="card empty"><strong>Everyone is snoozed</strong>Use \u201cshow them\u201d below whenever you're ready to bring everyone back.</div>`
       : `<div class="card empty"><strong>Nobody's slipping</strong>Every member is training at or above their normal rate. Enjoy it.</div>`;
   document.getElementById('calls-sub').textContent =
     `${list.length} members, ranked by how much you'd lose and how fast you're losing them.`;
@@ -1809,7 +1930,7 @@ function renderAction(){
 
   // ---- onboarding
   const ob = G.active
-    .filter(m => !STATE.snoozed.has(m.id))
+    .filter(m => !isSnoozed(m.id))
     .filter(m => m.tenureDays < 95 && m.tenureDays > 12)
     .map(m => Object.assign(m, { first30: m.scans.filter(t => t < m.join + 30 * DAY).length }))
     .filter(m => m.first30 < 7)
@@ -1821,21 +1942,13 @@ function renderAction(){
 
   // ---- wins
   const wins = G.active
-    .filter(m => !STATE.snoozed.has(m.id))
+    .filter(m => !isSnoozed(m.id))
     .filter(m => m.baseline >= 1 && (m.streak >= 4 || m.current > m.baseline * 1.4))
     .sort((a, b) => (b.streak - a.streak) || (b.current - a.current))
     .slice(0, 3);
   document.getElementById('wins').innerHTML = wins.length
     ? wins.map((a, i) => { const r = winReason(a); return callCard(Object.assign({}, a, { risk:'green' }), i + 1, r.why, r.msg, 'r-green'); }).join('')
     : `<div class="card empty"><strong>Nothing standing out this week</strong></div>`;
-
-  for (const button of document.querySelectorAll('.act-snooze')){
-    button.addEventListener('click', e => {
-      const card = button.closest('.call');
-      if (card) STATE.snoozed.add(+card.dataset.id);
-      renderAction(); e.stopPropagation();
-    });
-  }
 }
 
 /* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 MEMBERS \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
@@ -1880,7 +1993,7 @@ function renderMembers(){
     const chgTitle = a.baseline <= 0 ? 'No established normal yet'
       : a.current === a.baseline ? `${fmt1(a.baseline)} a week, unchanged`
       : `${fmt1(a.baseline)} a week ${a.current < a.baseline ? 'down' : 'up'} to ${fmt1(a.current)}`;
-    return `<tr data-id="${a.id}">
+    return `<tr data-id="${a.id}" tabindex="0" role="button" aria-label="Open ${esc(a.name)}">
       <td><span style="display:inline-flex;align-items:center;gap:9px">${initialsAvatar(a)}<span class="mname">${esc(a.name)}</span></span></td>
       <td style="color:var(--text-2)">${esc(a.tier)}<span style="color:var(--muted)"> \u00b7 ${fmtMoney(a.rate)}</span></td>
       <td class="r tnum">${esc(tenureShort(a.tenureMo))}</td>
@@ -1893,7 +2006,7 @@ function renderMembers(){
     </tr>`;
   }).join('') || `<tr><td colspan="9"><div class="empty"><strong>No matches</strong>Try a different search or filter.</div></td></tr>`;
 
-  cards.innerHTML = rows.map(a => `<article class="mcard" data-id="${a.id}">
+  cards.innerHTML = rows.map(a => `<article class="mcard" data-id="${a.id}" tabindex="0" role="button" aria-label="Open ${esc(a.name)}">
     <div class="top">${initialsAvatar(a)} <span class="nm">${esc(a.name)}</span> ${riskPill(a.risk)}</div>
     <div class="stats"><span>normal <b>${esc(fmt1(a.baseline))}</b>/wk</span><span>now <b>${esc(fmt1(a.current))}</b>/wk</span><span>last seen ${esc(lastSeenText(a))}</span></div>
   </article>`).join('') || `<div class="empty"><strong>No matches</strong>Try a different search or filter.</div>`;
@@ -1924,8 +2037,8 @@ function renderUtil(){
     ? kpi({ label:'Door scans', value:'0', foot:'Nothing came through the door in this window. Try a longer period.' })
     : kpi({ label:'Busiest slot', value: fmtTime(U.peakCell.h, 0),
             foot:`${DAYS3[U.peakCell.d]} is your heaviest, about ${Math.round(U.peakCell.v)} people in that hour` }) +
-      kpi({ label:'Peak floor pressure', value: peakOccPct, unit:'%',
-            foot:`About ${Math.round(U.maxOcc)} people on the floor around ${esc(U.maxOccTime)}, against an assumed ${CAPACITY}-person capacity` }) +
+      kpi({ label:'Fullest moment', value: peakOccPct, unit:'%',
+            foot:`${Math.round(U.maxOcc)} people on the floor at once around ${esc(U.maxOccTime)}, against an assumed ${CAPACITY}-person capacity. A typical day peaks at ${Math.round(U.typicalPeak)}.` }) +
       kpi({ label:'Trained 4-8pm weekdays', value: Math.round(U.inPeakWindow * 100), unit:'%',
             foot:`${Math.round(U.offPeak * 100)}% train 9am to 4pm, when the floor is nearly empty` }) +
       kpi({ label:'Quietest hour', value: fmtTime(U.deadH, 0),
@@ -1954,7 +2067,8 @@ function renderUtil(){
     for (const hr of HOURS){
       const v = U.avg[d][hr];
       const cls = CLASS_KEYS.has(`${d}-${hr}`) ? ' cls' : '';
-      h += `<div class="cell${cls}" style="background:${heatColor(v, U.maxCell)}" data-d="${d}" data-h="${hr}" data-i="${i}"></div>`;
+      const cellLabel = `${DOWS[i]} ${fmtTime(hr, 0)}, ${fmt1(v)} scans an hour${cls ? ', class runs then' : ''}`;
+      h += `<div class="cell${cls}" style="background:${heatColor(v, U.maxCell)}" data-d="${d}" data-h="${hr}" data-i="${i}" role="img" aria-label="${esc(cellLabel)}"></div>`;
     }
   });
   heat.innerHTML = h;
@@ -2013,7 +2127,7 @@ function renderUtil(){
   if (over.length) recos.push(`<b>${esc(listOf(over.map(c => c.name + ' ' + c.time)))}</b> ${over.length === 1 ? 'is' : 'are'} at or past the ${CLASS_CAP}-person cap. Overcrowding at peak is one of the most-cited reasons members give for quitting, so either add a coach to that hour or run a second heat.`);
   if (under.length) recos.push(`<b>${esc(listOf(under.slice(0, 3).map(c => c.name + ' ' + c.time + ' ' + c.dayLabel)))}</b> ${under.length === 1 ? 'is running' : 'are running'} under a third full. That is paid coaching time against a near-empty floor: merge them, or move the slot to an hour people actually want.`);
   recos.push(`Only <b>${Math.round(U.offPeak * 100)}%</b> of weekday training happens between 9am and 4pm, and ${fmtTime(U.deadH, 0)} is dead. An off-peak rate for that window is the standard play: gyms that offer one report higher overall utilization and lower churn, and it sells capacity you are already paying rent on.`);
-  recos.push(`Peak floor pressure hits <b>${peakOccPct}%</b> of an assumed ${CAPACITY}-person capacity around ${fmtTime(U.peakH, 0)}. Below 100% you have room; the number to watch is whether it climbs as you grow. Tell me your real floor and class caps and these two numbers get exact.`);
+  recos.push(`The floor gets to <b>${peakOccPct}%</b> of an assumed ${CAPACITY}-person capacity at its fullest, around ${esc(U.maxOccTime)}. Below 100% you have room; the number to watch is whether it climbs as you grow. Tell me your real floor and class caps and these two numbers get exact.`);
   document.getElementById('util-reco').innerHTML = recos.map(r => `<p style="margin-bottom:10px">${r}</p>`).join('');
 }
 
@@ -2053,7 +2167,7 @@ function renderGrowth(){
   });
   groupedBars(document.getElementById('chart-flow'), {
     data: M.map(m => ({ label: m.label, full: m.full, a: m.joins, b: m.cancels, extra: 'Churn ' + fmt1(m.churn) + '%' })),
-    nameA:'Joined', colorA:'var(--good)', nameB:'Cancelled', colorB:'var(--critical)',
+    nameA:'Joined', colorA:'var(--good)', nameB:'Cancelled', colorB:'var(--negative)',
     aria:'Joins and cancellations by month'
   });
   lineChart(document.getElementById('chart-survival'), {
@@ -2085,12 +2199,13 @@ function renderGrowth(){
     </div>`;
   }).join('');
 
+  const ORD = ['var(--ord-1)', 'var(--ord-2)', 'var(--ord-3)', 'var(--ord-4)'];
   document.getElementById('first30').innerHTML =
     `<p class="note" style="margin-bottom:16px">Every member who joined at least six months ago, grouped by how many times they scanned in their first 30 days \u2014 and whether they were still paying at month six. This is the single cheapest lever you have.</p>` +
-    L.buckets.map(b => `<div style="display:flex; align-items:center; gap:14px; margin-bottom:11px">
+    L.buckets.map((b, i) => `<div style="display:flex; align-items:center; gap:14px; margin-bottom:11px">
       <span style="width:96px; font-size:12px; color:var(--text-2)">${esc(b.label)}</span>
       <span style="flex:1; height:22px; background:var(--sunken); border-radius:5px; overflow:hidden; display:block">
-        ${b.n ? `<span style="display:block; height:100%; width:${b.pct.toFixed(1)}%; background:${b.pct > 65 ? 'var(--good)' : b.pct > 40 ? 'var(--warning)' : 'var(--critical)'}; border-radius:5px"></span>` : ''}</span>
+        ${b.n ? `<span style="display:block; height:100%; width:${b.pct.toFixed(1)}%; background:${ORD[Math.min(i, ORD.length - 1)]}; border-radius:5px"></span>` : ''}</span>
       <span class="num" style="font-size:20px; width:56px; text-align:right; color:${b.n ? 'var(--text)' : 'var(--muted)'}">${b.n ? Math.round(b.pct) + '%' : '&mdash;'}</span>
       <span class="cap" style="width:88px; font-size:10.5px">${b.n ? b.n + ' members' : 'nobody yet'}</span>
     </div>`).join('') +
@@ -2231,12 +2346,24 @@ function parseCSV(text){
 function parseWhen(v){
   const t = String(v == null ? '' : v).trim();
   if (!t) return null;
-  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
-  m = t.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if (m) return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0));
-  const d = new Date(t);
-  return isNaN(d) ? null : d;
+  const ok = d => (d && !isNaN(d)) ? d : null;
+  // Only treat a value as local wall time when it carries no timezone. An
+  // explicit Z or offset must be honoured, or every timestamp shifts by hours.
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(t);
+  const exact = (y, mo, da, h, mi, se) => {
+    const d = new Date(y, mo - 1, da, h || 0, mi || 0, se || 0);
+    // the Date constructor rolls 2026-02-31 forward into March; reject that
+    if (d.getFullYear() !== y || d.getMonth() !== mo - 1 || d.getDate() !== da) return null;
+    return d;
+  };
+  let m;
+  if (!hasZone){
+    m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return exact(+m[1], +m[2], +m[3]);
+    m = t.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (m) return exact(+m[1], +m[2], +m[3], +m[4], +m[5], +(m[6] || 0));
+  }
+  return ok(new Date(t));
 }
 
 const FILES = { members: null, scans: null };
@@ -2287,6 +2414,7 @@ function buildMapping(){
 
 function readFile(f, which, outId){
   const out = document.getElementById(outId);
+  FILES[which] = null;          // never leave a stale file armed behind a failure
   const r = new FileReader();
   r.onload = () => {
     const p = parseCSV(r.result);
@@ -2336,18 +2464,21 @@ function importData(){
     if (!jd){ badDates++; continue; }
     const parts = nm.split(/\s+/);
     const tier = ci.tier >= 0 ? (r[ci.tier] || '').trim() || 'Membership' : 'Membership';
-    const rate = ci.rate >= 0 ? parseFloat(String(r[ci.rate] || '').replace(/[^0-9.]/g, '')) || 0 : 0;
+    // blank and zero are different: a comped member really does pay nothing
+    const rateRaw = ci.rate >= 0 ? String(r[ci.rate] == null ? '' : r[ci.rate]).replace(/[^0-9.]/g, '') : '';
+    const rateNum = rateRaw === '' ? null : parseFloat(rateRaw);
+    const rate = (rateNum === null || isNaN(rateNum)) ? null : rateNum;
     const m = {
       id: id++, first: parts[0], last: parts.slice(1).join(' ') || '',
       name: nm, initials: (parts[0][0] || '?') + ((parts[1] || '')[0] || ''),
       arch:'sporadic', archLabel:'their usual time', slots: [], coach:'August',
-      tier, rate, rateFixed: rate > 0 ? rate : null, join: startOfDay(jd), cancel: null, scans: []
+      tier, rate: rate === null ? 0 : rate, rateFixed: rate, join: startOfDay(jd), cancel: null, scans: []
     };
     if (ci.end >= 0){
       const ed = parseWhen(r[ci.end]);
       if (ed && ed.getTime() > m.join) m.cancel = startOfDay(ed);
     }
-    (RATE_SAMPLES[tier] = RATE_SAMPLES[tier] || []); if (rate > 0) RATE_SAMPLES[tier].push(rate);
+    (RATE_SAMPLES[tier] = RATE_SAMPLES[tier] || []); if (rate !== null && rate > 0) RATE_SAMPLES[tier].push(rate);
     members.push(m);
     let clash = false;
     const claim = k => { if (byKey.has(k)) clash = true; else byKey.set(k, m); };
@@ -2377,16 +2508,17 @@ function importData(){
   // discounted or comped member cannot reprice the whole tier.
   const NEW_RATES = Object.create(null);
   for (const [tier, list] of Object.entries(RATE_SAMPLES))
-    NEW_RATES[tier] = list.length ? list.sort((a, b) => a - b)[list.length >> 1] : 0;
-  const priced = Object.values(NEW_RATES).filter(v => v > 0).sort((a, b) => a - b);
-  const fallback = priced.length ? priced[priced.length >> 1] : 150;
+    NEW_RATES[tier] = list.length ? median(list) : 0;
+  const priced = Object.values(NEW_RATES).filter(v => v > 0);
+  const fallback = priced.length ? median(priced) : 150;
   for (const k of Object.keys(NEW_RATES)) if (!NEW_RATES[k]) NEW_RATES[k] = fallback;
-  for (const m of members) if (!m.rate) m.rate = NEW_RATES[m.tier] || fallback;
+  for (const m of members) if (m.rateFixed === null) m.rate = NEW_RATES[m.tier] || fallback;
   RATES = NEW_RATES;
   const noPrice = ci.rate < 0;
   const noChurn = !members.some(m => m.cancel);
 
-  const earliest = Math.min(...members.flatMap(m => m.scans.length ? [m.scans[0]] : []));
+  let earliest = Infinity;
+  for (const m of members) if (m.scans.length && m.scans[0] < earliest) earliest = m.scans[0];
   // The member file carries the full join/cancel history even when the scan
   // log only covers recent months, so cohorts run from the earliest join.
   const firstJoin = members.reduce((a, m) => Math.min(a, m.join), Infinity);
@@ -2413,7 +2545,9 @@ function refresh(){
   if (STATE.screen === 'members') renderMembers();
   if (STATE.screen === 'util')   renderUtil();
   if (STATE.screen === 'growth') renderGrowth();
-  document.getElementById('tab-count').textContent = G.flagged.length;
+  // renderAction already set this from the same list the screen shows; setting it
+  // again from the unfiltered set made the badge disagree with the list.
+  if (STATE.screen !== 'action') document.getElementById('tab-count').textContent = needsCall().length;
 }
 function showScreen(name){
   STATE.screen = name;
@@ -2445,6 +2579,8 @@ document.addEventListener('click', e => {
   if (th){
     const k = th.dataset.sort;
     STATE.sort = { key: k, dir: STATE.sort.key === k ? -STATE.sort.dir : (k === 'name' ? 1 : k === 'risk' ? 1 : -1) };
+    for (const h of document.querySelectorAll('th.sortable')) h.removeAttribute('aria-sort');
+    th.setAttribute('aria-sort', STATE.sort.dir === 1 ? 'ascending' : 'descending');
     renderMembers(); return;
   }
 
@@ -2468,8 +2604,8 @@ document.addEventListener('click', e => {
   const snooze = e.target.closest('.act-snooze');
   if (snooze){
     const card = snooze.closest('.call'), id = +card.dataset.id;
-    STATE.snoozed = STATE.snoozed || new Set();
-    STATE.snoozed.add(id);
+    STATE.snoozed = STATE.snoozed || new Map();
+    STATE.snoozed.set(id, Date.now() + 7 * 24 * 60 * 60 * 1000);
     renderAction(); e.stopPropagation(); return;
   }
 
@@ -2482,7 +2618,6 @@ document.addEventListener('click', e => {
   if (e.target.id === 'calls-more'){ STATE.showAll = !STATE.showAll; renderAction(); return; }
   if (e.target.id === 'theme-toggle' || e.target.closest('#theme-toggle')){
     applyTheme(effectiveTheme() === 'dark' ? 'light' : 'dark');
-    try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
     return;
   }
   if (e.target.id === 'btn-import'){ document.getElementById('importer').setAttribute('open', ''); return; }
@@ -2491,14 +2626,19 @@ document.addEventListener('click', e => {
   if (e.target.id === 'do-import'){ importData(); return; }
   if (e.target.id === 'reset-demo'){
     RATES = Object.assign({}, TIERS);
-    DATA = buildDemoData(); STATE.contacted.clear();
+    DATA = buildDemoData(); STATE.contacted.clear(); if (STATE.snoozed) STATE.snoozed.clear();
     document.getElementById('import-warn').textContent = 'Back on the demo data.';
     setFreshness('Demo data - generated just now');
     refresh(); document.getElementById('importer').removeAttribute('open'); return;
   }
 });
 
+/* Enter or Space on a focused member row or card opens it, matching the click. */
 document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' '){
+    const row = e.target.closest && e.target.closest('#m-body tr[data-id], .mcard[data-id]');
+    if (row){ e.preventDefault(); openMember(+row.dataset.id); return; }
+  }
   if (e.key === 'Escape'){
     document.getElementById('drawer').removeAttribute('open');
     document.getElementById('importer').removeAttribute('open');
