@@ -887,11 +887,12 @@ const CLASS_COACH = {
   pm530:'Becky', pm630:'Andrew', pt:'Rachel'
 };
 
+/* EVSC's own three membership names, taken from their pricing page. Prices are
+   not published anywhere, so these are placeholders and the Growth screen says
+   so and lets August correct them. */
 const TIERS = {
-  'Open Gym 24/7':    99,
-  'Group 3x/week':   149,
-  'Group Unlimited': 179,
-  'Group + Open Gym':199,
+  'Open Gym':          99,
+  'Full Membership':  179,
   'Personal Training':425
 };
 let RATES = Object.assign({}, TIERS);   // editable on the Growth screen
@@ -906,8 +907,8 @@ function pickArch(){
   return ARCH[ARCH.length - 1];
 }
 
-const GROUP_TIERS = ['Group Unlimited', 'Group 3x/week', 'Group + Open Gym'];
-const OPEN_TIERS   = ['Open Gym 24/7', 'Open Gym 24/7', 'Open Gym 24/7', 'Open Gym 24/7', 'Group + Open Gym'];
+const GROUP_TIERS = ['Full Membership'];
+const OPEN_TIERS   = ['Open Gym', 'Open Gym', 'Open Gym', 'Open Gym', 'Full Membership'];
 
 function makeMember(joinMs, id){
   const a = pickArch();
