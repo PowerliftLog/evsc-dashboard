@@ -573,6 +573,7 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
     <button class="tab" role="tab" aria-selected="false" data-screen="members">Members</button>
     <button class="tab" role="tab" aria-selected="false" data-screen="util">Gym traffic</button>
     <button class="tab" role="tab" aria-selected="false" data-screen="growth">Business</button>
+    <button class="tab" role="tab" aria-selected="false" data-screen="pt">Personal training</button>
   </div>
 </nav>
 
@@ -747,6 +748,42 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
     <div class="card sec">
       <div class="card-h"><h3>First-month visits and staying power</h3></div>
       <div class="card-b"><div id="first30"></div></div>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-pt" role="tabpanel" aria-label="Personal training" hidden>
+    <div class="head">
+      <h2>Personal training</h2>
+      <span class="sub" id="pt-sub"></span>
+    </div>
+
+    <div class="grid kpis" id="pt-kpis"></div>
+
+    <div class="card">
+      <div class="card-h">
+        <h3>Sessions still owed</h3>
+        <span class="sub">Packages sold but not yet delivered</span>
+      </div>
+      <div class="card-b" id="pt-owed"></div>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <div class="card-h"><h3>Sessions by month</h3><span class="sub">Delivered, cancelled and no-shows</span></div>
+        <div class="card-b"><div id="chart-pt-months"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>Who is coaching</h3><span class="sub">Sessions delivered in this window</span></div>
+        <div class="card-b" id="pt-coaches"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <h3>Sitting on unused sessions</h3>
+        <span class="sub">Paid up, nothing booked, and nothing delivered in three weeks. Worth a call.</span>
+      </div>
+      <div class="card-b" id="pt-stale"></div>
     </div>
   </section>
 
@@ -1026,6 +1063,130 @@ function genScans(m, scanStart){
   m.scans.sort((a, b) => a - b);
 }
 
+function genPTData(members){
+  const ptPackages = [], ptSessions = [];
+  const active = members.filter(m => !m.cancel && m.join <= TODAY);
+  const ptTier = active.filter(m => m.tier === 'Personal Training');
+  const sidePool = shuffle(active.filter(m => m.tier !== 'Personal Training'));
+  const staleBuyers = sidePool.filter(m => m.join <= TODAY - 300 * DAY).slice(0, 5);
+  const staleIdList = new Set(staleBuyers.map(m => m.id));
+  const sideBuyers = sidePool.filter(m => !staleIdList.has(m.id))
+    .slice(0, Math.max(9, 19 - ptTier.length)).concat(staleBuyers);
+  const buyers = ptTier.concat(sideBuyers);
+  const staleIds = new Set(staleBuyers.map(m => m.id));
+  const coaches = ['Rachel','Sam','Chris','Paige','Charlie','Becky','Andrew'];
+  const monthStart = new Date(TODAY); monthStart.setDate(1);
+
+  // PT pricing is a placeholder for the same reason the membership rates are:
+  // bigger commitments get a modest discount, but August must replace the dollars.
+  /* A PT client does not buy one block and stop -- they work through it and buy
+     another. Generating a single package each made the whole history start about
+     eight months back, so the monthly chart showed personal training ramping up
+     out of nothing, which is a story about the generator rather than the gym.
+     Each buyer now has a chain of packages running back to whichever is later of
+     their join date and the start of the simulated window. */
+  for (let i = 0; i < buyers.length; i++){
+    const m = buyers[i];
+    const stale = staleIds.has(m.id);
+    const historyFrom = Math.max(startOfDay(m.join), TODAY - 420 * DAY);
+    // The most recent block: the one they are working through now.
+    const chain = [];
+    let cursor = stale ? TODAY - rint(150, 270) * DAY
+               : (i < 4 ? monthStart.getTime() + rint(0, Math.max(0, Math.floor((TODAY - monthStart) / DAY))) * DAY
+                        : TODAY - rint(20, 90) * DAY);
+    cursor = Math.max(cursor, historyFrom);
+    chain.push(cursor);
+    // Then walk backwards, one block roughly every two to four months.
+    if (!stale){
+      let back = cursor;
+      while (back - rint(55, 120) * DAY > historyFrom && chain.length < 6){
+        back -= rint(55, 120) * DAY;
+        chain.push(back);
+      }
+    }
+
+    for (let c = chain.length - 1; c >= 0; c--){
+    const current = c === 0;
+    const sessions = pick([5,5,10,10,10,20]);
+    let purchased = chain[c];
+    purchased = Math.max(purchased, startOfDay(m.join));
+    const unit = sessions === 5 ? 95 : sessions === 10 ? 88 : 80;
+    const pkg = {
+      id: ptPackages.length + 1,
+      memberId: m.id,
+      purchased,
+      sessions,
+      price: sessions * unit,
+      expires: stale || chance(.72) ? purchased + 365 * DAY : null
+    };
+    ptPackages.push(pkg);
+
+    const cadence = rint(6, 10);
+    const nextPurchased = current ? null : chain[c - 1];
+    // Superseded blocks need enough room to finish before the next sale, even
+    // when a large block follows a shorter-than-usual buying interval.
+    const sessionGap = current ? cadence
+      : Math.max(1, Math.floor((nextPurchased - purchased) / ((sessions + 1) * DAY)));
+    const future = (!current || stale) ? 0 : (i % 3 === 0 ? Math.min(rint(1, 3), sessions - 1) : 0);
+    const elapsed = Math.max(0, Math.floor((TODAY - purchased) / (cadence * DAY)));
+    // A block they have moved on from was used up; only the live one has a balance.
+    const past = !current ? sessions
+               : stale ? rint(1, Math.min(3, sessions - 2))
+               : Math.min(sessions - future, elapsed);
+    for (let j = 0; j < past; j++){
+      const d = new Date(purchased + (j + 1) * sessionGap * DAY); d.setHours(pick([7,9,11,14,16,18]), pick([0,0,30]), 0, 0);
+      const outcome = rnd();
+      ptSessions.push({
+        memberId: m.id,
+        coach: m.coach || pick(coaches),
+        start: d.getTime(),
+        status: !current ? 'completed' : outcome < .86 ? 'completed' : outcome < .97 ? 'cancelled' : 'noshow',
+        packageId: pkg.id,
+        price: null
+      });
+    }
+    for (let j = 0; j < future; j++){
+      const lead = i === 0 && j === 0 ? 1 : rint(2, 7);
+      const d = new Date(TODAY + (lead + j * rint(6, 9)) * DAY); d.setHours(pick([7,9,11,14,16,18]), pick([0,30]), 0, 0);
+      ptSessions.push({
+        memberId: m.id,
+        coach: m.coach || pick(coaches),
+        start: d.getTime(),
+        status: 'scheduled',
+        packageId: pkg.id,
+        price: null
+      });
+    }
+    }
+  }
+
+  // A small pay-as-you-go edge keeps collected revenue honest without making
+  // one-off PT look like the normal way this gym sells coaching.
+  const singles = shuffle(active.filter(m => !buyers.some(b => b.id === m.id))).slice(0, 7);
+  for (let i = 0; i < singles.length; i++){
+    const m = singles[i];
+    const count = i < 2 ? 2 : 1;
+    for (let j = 0; j < count; j++){
+      const future = i < 3 && j === count - 1;
+      const d = new Date(future ? TODAY + rint(3, 20) * DAY : TODAY - rint(4, 90) * DAY);
+      d.setHours(pick([7,9,11,14,16,18]), pick([0,30]), 0, 0);
+      const outcome = rnd();
+      ptSessions.push({
+        memberId: m.id,
+        coach: pick(coaches),
+        start: d.getTime(),
+        status: future ? 'scheduled' : outcome < .87 ? 'completed' : outcome < .98 ? 'cancelled' : 'noshow',
+        packageId: null,
+        price: pick([100,105,110])
+      });
+    }
+  }
+
+  ptSessions.sort((a, b) => a.start - b.start);
+  for (let i = 0; i < ptSessions.length; i++) ptSessions[i].id = i + 1;
+  return { ptSessions, ptPackages };
+}
+
 function buildDemoData(){
   R = mulberry32(20090614);
   const members = [];
@@ -1082,10 +1243,11 @@ function buildDemoData(){
 
   for (const m of members){ if (!m.cancel) assignTrajectory(m, false); }
   for (const m of members) genScans(m, SCAN_START);
+  const { ptSessions, ptPackages } = genPTData(members);
 
   // Someone who signed up and never really showed is a different problem
   // from someone who quit \u2014 keep a few of each so both lists have teeth.
-  return { members, scanStart: SCAN_START, simStart: SIM_START, coverage: SIM_START, source: 'demo' };
+  return { members, ptSessions, ptPackages, scanStart: SCAN_START, simStart: SIM_START, coverage: SIM_START, source: 'demo' };
 }
 </script>
 
@@ -1490,6 +1652,189 @@ function analyzeGym(data, period){
     netChange: joined - cancelled,
     coverage: data.coverage || data.scanStart,
     coverageNow, coveragePrev, coverageFrom: SCAN_COVERAGE.from
+  };
+}
+
+/* ------------------------------------------------ personal training ---- */
+function analyzePT(data, range){
+  const sessions = Array.isArray(data.ptSessions) ? data.ptSessions : [];
+  const packages = Array.isArray(data.ptPackages) ? data.ptPackages : [];
+  const has = sessions.length > 0 || packages.length > 0;
+
+  if (!has) return {
+    has: false,
+    scheduled: null, scheduledValue: null, scheduledDays: null, delivered: null, cancelled: null, noshow: null, months: null,
+    noShowRate: null, sessionsRemaining: null, deferredRevenue: null,
+    earned: null, collected: null, projectedMonth: null, byCoach: null, stale: null,
+    unknownPrice: null, singleCollectedUnmeasurable: null
+  };
+
+  const packageById = new Map(packages.map(p => [p.id, p]));
+  const addFinite = (sum, value) => {
+    const total = sum + value;
+    return Number.isFinite(total) ? total : total < 0 ? -Number.MAX_VALUE : Number.MAX_VALUE;
+  };
+  const validPrice = value => Number.isFinite(value) && value >= 0;
+  const unitPrice = p => {
+    if (!p || !validPrice(p.price) || !Number.isFinite(p.sessions) || p.sessions <= 0) return null;
+    const unit = p.price / p.sessions;
+    return Number.isFinite(unit) ? unit : null;
+  };
+  const sessionValue = s => s.price == null
+    ? unitPrice(packageById.get(s.packageId))
+    : validPrice(s.price) ? s.price : null;
+  const sumSessionValues = list => {
+    let value = 0, unknownPrice = false;
+    for (const s of list){
+      const price = sessionValue(s);
+      if (price === null) unknownPrice = true;
+      else value = addFinite(value, price);
+    }
+    return { value: unknownPrice ? null : value, unknownPrice };
+  };
+  const inWindow = s => s.start >= range.from && s.start < range.to;
+  const inRange = sessions.filter(inWindow);
+
+  /* Booked sessions are the one PT number that looks FORWARD. Every period
+     window in this dashboard is trailing, so counting scheduled sessions inside
+     it always returns zero -- a booking is in the future by definition. Scope it
+     forward by the same span instead, and let the view say "the next 7 days" so
+     the switcher still means something here. */
+  const today = new Date(TODAY);
+  const aheadTo = new Date(today.getFullYear(), today.getMonth(), today.getDate() + range.days).getTime();
+  const scheduledSessions = sessions.filter(s =>
+    s.status === 'scheduled' && s.start >= TODAY && s.start < aheadTo);
+  const scheduled = scheduledSessions.length;
+  const scheduledMoney = sumSessionValues(scheduledSessions);
+  const deliveredSessions = inRange.filter(s => s.status === 'completed');
+  const delivered = deliveredSessions.length;
+  const cancelled = inRange.filter(s => s.status === 'cancelled').length;
+  const noshow = inRange.filter(s => s.status === 'noshow').length;
+  const noShowDenom = delivered + noshow;
+
+  const usedByPackage = new Map();
+  for (const s of sessions) if (s.status === 'completed' && s.packageId != null)
+    usedByPackage.set(s.packageId, (usedByPackage.get(s.packageId) || 0) + 1);
+
+  const remainingByMember = new Map();
+  let sessionsRemaining = 0, deferredRevenueKnown = 0, deferredRevenueUnknownPrice = false;
+  for (const p of packages){
+    const expired = p.expires != null && p.expires <= TODAY;
+    const countKnown = Number.isFinite(p.sessions) && p.sessions > 0;
+    const count = countKnown ? p.sessions : 0;
+    const remaining = expired ? 0 : Math.max(0, count - (usedByPackage.get(p.id) || 0));
+    const unit = unitPrice(p);
+    const unknownPrice = !expired && (!countKnown || (remaining > 0 && unit === null));
+    const value = unknownPrice ? null : remaining * (unit === null ? 0 : unit);
+    sessionsRemaining = addFinite(sessionsRemaining, remaining);
+    if (unknownPrice) deferredRevenueUnknownPrice = true;
+    else deferredRevenueKnown = addFinite(deferredRevenueKnown, value);
+    if (remaining > 0){
+      const held = remainingByMember.get(p.memberId) || { remaining: 0, value: 0, unknownPrice: false };
+      held.remaining = addFinite(held.remaining, remaining);
+      if (unknownPrice) held.unknownPrice = true;
+      else held.value = addFinite(held.value, value);
+      remainingByMember.set(p.memberId, held);
+    }
+  }
+
+  const earnedMoney = sumSessionValues(deliveredSessions);
+  let packageCollected = 0, collectedUnknownPrice = false;
+  for (const p of packages){
+    if (!(p.purchased >= range.from && p.purchased < range.to)) continue;
+    if (validPrice(p.price)) packageCollected = addFinite(packageCollected, p.price);
+    else collectedUnknownPrice = true;
+  }
+  const singleCollectedUnmeasurable = sessions.some(s => s.packageId == null);
+
+  // Calendar boundaries keep the projection honest in places where a month
+  // contains a daylight-saving transition rather than 30 fixed-length days.
+  const now = new Date(TODAY);
+  const monthFrom = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const monthTo = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+  const dayTo = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+  const earnedThisMonth = sumSessionValues(sessions.filter(s =>
+    s.status === 'completed' && s.start >= monthFrom && s.start < dayTo));
+  const bookedThisMonth = sumSessionValues(sessions.filter(s =>
+    s.status === 'scheduled' && s.start >= TODAY && s.start < monthTo));
+  const projectedMonthUnknownPrice = earnedThisMonth.unknownPrice || bookedThisMonth.unknownPrice;
+
+  const hasCoach = sessions.some(s => typeof s.coach === 'string' && s.coach.length > 0);
+  let byCoach = null;
+  if (hasCoach){
+    const coachCounts = new Map();
+    for (const s of deliveredSessions) if (typeof s.coach === 'string' && s.coach.length > 0)
+      coachCounts.set(s.coach, (coachCounts.get(s.coach) || 0) + 1);
+    byCoach = Array.from(coachCounts, ([coach, count]) => ({ coach, delivered: count }))
+      .sort((a, b) => b.delivered - a.delivered || a.coach.localeCompare(b.coach));
+  }
+
+  const memberById = new Map((Array.isArray(data.members) ? data.members : []).map(m => [m.id, m]));
+  const recentFrom = TODAY + DAY - 21 * DAY;
+  const stale = [];
+  for (const [memberId, held] of remainingByMember){
+    const own = sessions.filter(s => s.memberId === memberId);
+    const ahead = own.some(s => s.status === 'scheduled' && s.start >= TODAY);
+    const completed = own.filter(s => s.status === 'completed' && s.start < TODAY + DAY);
+    const last = completed.length ? Math.max(...completed.map(s => s.start)) : null;
+    if (ahead || (last !== null && last >= recentFrom)) continue;
+    const member = memberById.get(memberId);
+    stale.push({
+      memberId,
+      name: member ? member.name : null,
+      remaining: held.remaining,
+      value: held.unknownPrice ? null : held.value,
+      unknownPrice: held.unknownPrice,
+      daysSince: last === null ? null : Math.max(0, Math.floor((TODAY + DAY - last) / DAY))
+    });
+  }
+  /* Thirteen months of delivered against lost, on real calendar boundaries.
+     Cancellations and no-shows sit together because from the owner's side they
+     are the same thing: an hour he had sold and did not get to deliver. */
+  const months = [];
+  {
+    const cur = new Date(TODAY); cur.setDate(1);
+    cur.setMonth(cur.getMonth() - 12);
+    for (let i = 0; i < 13; i++){
+      const from = new Date(cur.getFullYear(), cur.getMonth() + i, 1).getTime();
+      const to   = new Date(cur.getFullYear(), cur.getMonth() + i + 1, 1).getTime();
+      let done = 0, lost = 0;
+      for (const x of sessions){
+        if (x.start < from || x.start >= to) continue;
+        if (x.status === 'completed') done++;
+        else if (x.status === 'cancelled' || x.status === 'noshow') lost++;
+      }
+      const dd = new Date(from);
+      months.push({ label: dd.toLocaleDateString('en-US', { month:'short' }),
+                    full:  dd.toLocaleDateString('en-US', { month:'long', year:'numeric' }),
+                    a: done, b: lost });
+    }
+  }
+
+  stale.sort((a, b) => {
+    if (a.value === null || b.value === null){
+      if (a.value !== b.value) return a.value === null ? 1 : -1;
+    } else if (a.value !== b.value) return b.value - a.value;
+    return (a.daysSince === null ? (b.daysSince === null ? 0 : -1) : b.daysSince === null ? 1 : b.daysSince - a.daysSince)
+      || b.remaining - a.remaining;
+  });
+
+  const unknownPrice = {
+    scheduledValue: scheduledMoney.unknownPrice,
+    deferredRevenue: deferredRevenueUnknownPrice,
+    earned: earnedMoney.unknownPrice,
+    collected: collectedUnknownPrice,
+    projectedMonth: projectedMonthUnknownPrice,
+    stale: stale.some(item => item.unknownPrice)
+  };
+
+  return {
+    has, scheduled, scheduledValue: scheduledMoney.value, scheduledDays: range.days, delivered, cancelled, noshow, months,
+    noShowRate: noShowDenom ? noshow / noShowDenom : null,
+    sessionsRemaining, deferredRevenue: deferredRevenueUnknownPrice ? null : deferredRevenueKnown,
+    earned: earnedMoney.value, collected: collectedUnknownPrice ? null : packageCollected,
+    projectedMonth: projectedMonthUnknownPrice ? null : addFinite(earnedThisMonth.value, bookedThisMonth.value),
+    byCoach, stale, unknownPrice, singleCollectedUnmeasurable
   };
 }
 
@@ -1912,7 +2257,7 @@ const riskColor = r =>
    ========================================================================= */
 
 let DATA = buildDemoData();
-let G, U, L, WEEKLY, TRAILING_14_COVERAGE;
+let G, U, L, PT, WEEKLY, TRAILING_14_COVERAGE;
 const STATE = {
   period: 'week', screen: 'action',
   mFilter: 'all', mSearch: '', sort: { key: 'risk', dir: 1 },
@@ -1938,6 +2283,7 @@ function recompute(){
      so coverage belongs in the wording, not in the arithmetic. */
   U = analyzeUtilization(G);
   L = analyzeLifecycle(G);
+  PT = analyzePT(DATA, G.range);
   WEEKLY = (() => {
     const out = new Array(13).fill(0);
     for (const m of G.all) for (const t of m.scans){
@@ -2399,6 +2745,101 @@ function renderUtil(){
 }
 
 /* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 GROWTH \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
+/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 PERSONAL TRAINING \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
+/* Sessions and packages come from Mindbody, not from the door log, so nothing
+   here touches the visit-coverage gate. What it does share is the rule: with no
+   session data loaded, every figure is an em dash and says what would fill it. */
+function renderPT(){
+  const P = PT, money = fmtMoney;
+  const sub = document.getElementById('pt-sub');
+
+  if (!P.has){
+    sub.textContent = 'No personal-training data loaded yet.';
+    document.getElementById('pt-kpis').innerHTML =
+      ['Booked sessions', 'Sessions still owed', 'Revenue earned', 'Projected this month'].map(l =>
+        kpi({ label: l, value: '\u2014',
+              foot: 'Needs a Mindbody appointments and package export. Everything on this screen comes from those two reports.' })).join('');
+    const why = `<div class="empty"><strong>Nothing to show yet</strong>Export <b>Appointments</b> and <b>Packages</b> from Mindbody and load them with your other files. Until then this screen stays empty rather than guessing.</div>`;
+    for (const id of ['pt-owed', 'pt-coaches', 'pt-stale']) document.getElementById(id).innerHTML = why;
+    document.getElementById('chart-pt-months').innerHTML =
+      `<div class="empty"><strong>&mdash;</strong>Needs a Mindbody appointments and package export. Everything on this screen comes from those two reports.</div>`;
+    return;
+  }
+
+  const P2 = PERIODS[STATE.period];
+  sub.textContent = `${fmtInt(P.delivered)} ${P.delivered === 1 ? 'session' : 'sessions'} delivered over ${P2.label}. Booked sessions look ahead instead.`;
+
+  const days = P.scheduledDays === 1 ? 'the next day' : `the next ${P.scheduledDays} days`;
+  document.getElementById('pt-kpis').innerHTML =
+    kpi({ label: 'Booked sessions', value: fmtInt(P.scheduled),
+          foot: `Scheduled over ${esc(days)}, worth ${esc(money(P.scheduledValue))} once delivered` }) +
+    kpi({ label: 'Sessions still owed', value: fmtInt(P.sessionsRemaining),
+          foot: `${money(P.deferredRevenue)} already paid for and not yet delivered` }) +
+    kpi({ label: 'Revenue earned', value: money(P.earned),
+          /* Collected counts packages by their purchase date. A pay-as-you-go single
+             carries no sale date in this data, so it cannot be placed in a month --
+             say that rather than quietly booking it to the session date. */
+          foot: `Sessions delivered over ${esc(P2.label)} \u00b7 ${money(P.collected)} collected in the same window`
+                + (P.singleCollectedUnmeasurable ? ', from packages only \u2014 one-off sessions carry no sale date to place them by' : '') }) +
+    kpi({ label: 'Projected this month', value: money(P.projectedMonth),
+          foot: 'Delivered so far plus everything still booked this month, if every booking is kept' });
+
+  /* Money already taken against work still owed. Gym owners under-track this and
+     it is the number that bites on a refund, so it gets its own explanation. */
+  const owedPct = P.deferredRevenue > 0 && P.earned >= 0
+    ? Math.min(100, P.deferredRevenue / Math.max(1, P.deferredRevenue + P.earned) * 100) : 0;
+  document.getElementById('pt-owed').innerHTML =
+    `<div class="bench">
+      <div style="display:flex; align-items:baseline; gap:8px">
+        <span class="num" style="font-size:26px">${esc(money(P.deferredRevenue))}</span>
+        <span class="eyebrow" style="margin-left:auto">${esc(fmtInt(P.sessionsRemaining))} ${P.sessionsRemaining === 1 ? 'session' : 'sessions'}</span>
+      </div>
+      <div class="track"><span class="fill" style="width:${owedPct.toFixed(1)}%; background:var(--warning)"></span></div>
+      <div class="cap">This is money already in the bank for work not yet done. If someone asks for a refund or walks with a balance, this is the exposure.</div>
+    </div>`;
+
+  groupedBars(document.getElementById('chart-pt-months'), {
+    data: P.months, nameA: 'Delivered', colorA: 'var(--good)',
+    nameB: 'Cancelled or no-show', colorB: 'var(--negative)',
+    aria: 'Personal-training sessions delivered and lost by month'
+  });
+
+  const coaches = (P.byCoach || []).filter(c => c && c.coach);
+  document.getElementById('pt-coaches').innerHTML = !coaches.length
+    ? Array.isArray(P.byCoach)
+      ? `<div class="empty"><strong>No sessions delivered in this window</strong>Coach data is available, but no completed sessions fall in the selected period.</div>`
+      : `<div class="empty"><strong>No coach on these records</strong>The export did not carry a staff column, so sessions cannot be split by coach.</div>`
+    : (() => {
+        let top = 0; for (const c of coaches) if (c.delivered > top) top = c.delivered;
+        return coaches.map(({ coach: name, delivered: n }) => `<div style="display:flex; align-items:center; gap:14px; margin-bottom:11px">
+          <span style="width:74px; font-size:12px; color:var(--text-2)">${esc(name)}</span>
+          <span style="flex:1; height:22px; background:var(--sunken); border-radius:5px; overflow:hidden; display:block">
+            <span style="display:block; height:100%; width:${top > 0 ? (n / top * 100).toFixed(1) : 0}%; background:var(--s1); border-radius:5px"></span></span>
+          <span class="num" style="font-size:16px; width:46px; text-align:right">${fmtInt(n)}</span>
+        </div>`).join('') +
+        `<p class="note" style="margin-top:12px">Sessions delivered over ${esc(P2.label)}.</p>`;
+      })();
+
+  document.getElementById('pt-stale').innerHTML = !P.stale.length
+    ? `<div class="empty"><strong>Nobody is sitting on unused sessions</strong>Everyone with a balance has something booked or has trained recently.</div>`
+    : P.stale.map((x, i) => {
+        const m = G.all.find(a => a.id === x.memberId);
+        const last = x.daysSince === null ? 'They have never used one.'
+          : x.daysSince === 1 ? 'They last trained yesterday.'
+          : `They last trained ${x.daysSince} days ago.`;
+        return `<article class="call r-amber" data-id="${x.memberId}">
+          <div class="rank">${i + 1}</div>
+          <div>
+            <div class="who">${m ? initialsAvatar(m) : ''}<span class="nm">${esc(x.name)}</span>
+              <span class="meta">${esc(money(x.value))} of sessions unused</span></div>
+            <p><b>${fmtInt(x.remaining)} ${x.remaining === 1 ? 'session' : 'sessions'}</b> left and nothing booked. ${esc(last)}</p>
+          </div>
+          <div class="side"><div class="cap">Paid for \u00b7 not delivered</div></div>
+        </article>`;
+      }).join('') +
+      `<p class="note" style="margin-top:14px">Always the last three weeks, so this list does not change when you switch the period at the top.</p>`;
+}
+
 /* Reads the finding the engine worked out and says only what it supports. No
    band is named unless enough members sit in it to mean something. */
 function firstMonthFinding(){
@@ -2960,6 +3401,7 @@ function refresh(){
   if (STATE.screen === 'members') renderMembers();
   if (STATE.screen === 'util')   renderUtil();
   if (STATE.screen === 'growth') renderGrowth();
+  if (STATE.screen === 'pt') renderPT();
   // renderAction already set this from the same list the screen shows; setting it
   // again from the unfiltered set made the badge disagree with the list.
   if (STATE.screen !== 'action') document.getElementById('tab-count').textContent = needsCall().length;
