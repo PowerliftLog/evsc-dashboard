@@ -616,6 +616,7 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
       <button class="chip" data-mf="amber" aria-pressed="false">Slipping</button>
       <button class="chip" data-mf="green" aria-pressed="false">Steady</button>
       <button class="chip" data-mf="new"   aria-pressed="false">New</button>
+      <button class="chip" data-mf="unknown" aria-pressed="false">Not enough history</button>
     </div>
     <div class="tablewrap">
       <table id="m-table">
@@ -1101,7 +1102,7 @@ function longestPriorGap(scans){
 /* ---------------------------------------------------------------- members */
 /* A member's own rate wins when their file supplied one; RATES is the per-tier
    default used for everyone else, and it is what the Growth screen edits. */
-const rateOf = m => (m.rateFixed != null && m.rateFixed > 0) ? m.rateFixed
+const rateOf = m => (m.rateFixed !== undefined && m.rateFixed !== null) ? m.rateFixed
                   : (RATES[m.tier] != null ? RATES[m.tier] : (m.rate || 0));
 
 function analyzeMember(m){
@@ -1398,16 +1399,16 @@ function analyzeUtilization(g){
   const { from, to } = g.range;
   const grid = Array.from({length:7}, () => new Array(24).fill(0));
   const dayCount = new Array(7).fill(0);
-  let calDays = 0;
 
-  for (let t = from; t < to; t += DAY){ dayCount[new Date(t).getDay()]++; calDays++; }
+  for (let t = from; t < to; t += DAY) dayCount[new Date(t).getDay()]++;
 
   let total = 0;
-  const stay = STAY_MIN / SLOT_MIN;
   // Occupancy per actual date, so a genuinely full Monday is not diluted by six
   // quiet days. The previous version averaged across the window and still called
   // the result a peak.
   const byDate = new Map();
+  // every calendar day in the window, so quiet days are not silently dropped
+  for (let t = from; t < to; t += DAY) byDate.set(startOfDay(t), new Float32Array(SLOTS));
 
   for (const m of g.all) for (const t of m.scans){
     if (t < from || t >= to) continue;
@@ -1420,19 +1421,22 @@ function analyzeUtilization(g){
     // a session occupies the floor from arrival for STAY_MIN, so start at the
     // arriving slot rather than the floor of it and include the trailing part
     const mins = d.getHours() * 60 + d.getMinutes();
-    const first = Math.floor(mins / SLOT_MIN);
-    const last  = Math.floor((mins + STAY_MIN - 1) / SLOT_MIN);
-    for (let sIdx = first; sIdx <= last && sIdx < SLOTS; sIdx++) slots[sIdx]++;
+    const endM = mins + STAY_MIN;
+    // a slot counts only if the visit covers its midpoint, which keeps a
+    // 70-minute stay occupying exactly seven 10-minute slots
+    const first = Math.round(mins / SLOT_MIN);
+    const last  = Math.round(endM / SLOT_MIN) - 1;
+    for (let sIdx = first; sIdx <= last && sIdx < SLOTS; sIdx++) if (sIdx >= 0) slots[sIdx]++;
   }
 
   // the busiest single moment actually observed, and the typical daily peak
-  let maxOcc = 0, maxOccSlot = 0, maxOccDate = null;
+  let maxOcc = 0, maxOccSlot = 0;
   const dailyPeaks = [];
-  for (const [key, slots] of byDate){
+  for (const slots of byDate.values()){
     let dayMax = 0, daySlot = 0;
     for (let i = 0; i < SLOTS; i++) if (slots[i] > dayMax){ dayMax = slots[i]; daySlot = i; }
     dailyPeaks.push(dayMax);
-    if (dayMax > maxOcc){ maxOcc = dayMax; maxOccSlot = daySlot; maxOccDate = key; }
+    if (dayMax > maxOcc){ maxOcc = dayMax; maxOccSlot = daySlot; }
   }
   dailyPeaks.sort((a, b) => a - b);
   const typicalPeak = dailyPeaks.length ? dailyPeaks[Math.floor(dailyPeaks.length / 2)] : 0;
@@ -1499,9 +1503,9 @@ function analyzeUtilization(g){
   }).sort((a, b) => (a.h * 60 + a.m) - (b.h * 60 + b.m));
 
   const maxCell = Math.max(0, ...avg.flat());
-  return { grid, avg, dayCount, calDays, daysPresent, total, empty, hourlyAvg,
+  return { grid, avg, dayCount, daysPresent, total, empty, hourlyAvg,
            peak, peakH, dead, deadH, peakDay, peakCell,
-           maxOcc, typicalPeak, maxOccSlot, maxOccDate,
+           maxOcc, typicalPeak, maxOccSlot,
            maxOccTime: fmtTime(Math.floor(maxOccSlot / 6), (maxOccSlot % 6) * 10),
            inPeakWindow: share(16, 19), offPeak: share(9, 15), classes, maxCell };
 }
@@ -1741,7 +1745,8 @@ function riskPill(risk, text){
   return `<span class="pill ${RISK_CLASS[risk]}">${ICONS[risk] || ''}${esc(text || RISK_LABEL[risk])}</span>`;
 }
 const riskColor = r =>
-    r === 'red'   ? 'var(--critical)'
+    r === 'unknown' ? 'var(--muted)'
+  : r === 'red'   ? 'var(--critical)'
   : r === 'amber' ? 'var(--warning)'
   : r === 'low'   ? 'var(--warning)'
   : r === 'new'   ? 'var(--s1)'
@@ -1767,6 +1772,9 @@ const DOW_IDX = [1,2,3,4,5,6,0];
 const HOURS = [5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22];
 
 function recompute(){
+  // Must be set BEFORE analyzeMember runs, or the coverage gate never fires and
+  // a short scan export silently invents baselines for long-standing members.
+  SCAN_COVERAGE.from = DATA.source === 'demo' ? null : (DATA.scanStart || null);
   G = analyzeGym(DATA, STATE.period);
   G.scanStart = DATA.scanStart;
   U = analyzeUtilization(G);
@@ -1875,7 +1883,9 @@ function renderAction(){
     ? `${listSentence}. ${active.length === 1
         ? `That membership is <b>${fmtMoney(atRiskRevenue)} a month</b>, so it is worth a check-in.`
         : `Together those memberships bring in <b>${fmtMoney(atRiskRevenue)} a month</b>, so they are worth a check-in.`}`
-    : `Everyone is training at about their usual rate right now.`;
+    : G.active.some(m => m.risk === 'unknown')
+      ? `Not enough visit history yet to compare anyone against their usual. Load a longer export and this fills in.`
+      : `Everyone is training at about their usual rate right now.`;
 
   const netSentence = G.netChange === 0
     ? `No change over ${esc(P.label)}: ${G.joined} joined and ${G.cancelled} cancelled`
@@ -1901,7 +1911,7 @@ function renderAction(){
     kpi({ label:'Visits \u00b7 ' + P.label, value: fmtInt(G.visits),
           delta: Math.round(vDelta), deltaText: Math.abs(Math.round(vDelta)) + '%',
           spark: sparkline(WEEKLY, { w: 168, h: 30, color:'var(--s1)' }),
-          foot: `${fmt1(G.visits / Math.max(1, G.active.length))} visits per active member \u00b7 weekly visits over 13 weeks` }) +
+          foot: `${fmt1(G.visits / Math.max(1, G.active.length))} visits per member on the current roster \u00b7 weekly visits over 13 weeks` }) +
     kpi({ label:'Need a check-in', value: fmtInt(active.length), unit: active.length === 1 ? 'member' : 'members',
           foot: `<span style="color:var(--critical)">${fmtMoney(atRiskRevenue)} a month</span> in memberships \u00b7 ${Math.round(active.length / Math.max(1, G.active.length) * 100)}% of active members` }) +
     kpi({ label:'Monthly membership revenue', value: fmtMoney(G.mrr),
@@ -1948,7 +1958,7 @@ function renderAction(){
   const ob = G.active
     .filter(m => !isSnoozed(m.id))
     .filter(m => m.tenureDays < 95 && m.tenureDays > 12)
-    .map(m => Object.assign(m, { first30: m.scans.filter(t => t < m.join + 30 * DAY).length }))
+    .map(m => Object.assign(m, { first30: m.scans.filter(t => t < m.join + 30 * DAY && t < TODAY + DAY).length }))
     .filter(m => m.first30 < 7)
     .sort((a, b) => (a.first30 - b.first30) || (b.rate - a.rate))
     .slice(0, 4);
@@ -1959,7 +1969,7 @@ function renderAction(){
   // ---- wins
   const wins = G.active
     .filter(m => !isSnoozed(m.id))
-    .filter(m => m.baseline >= 1 && (m.streak >= 4 || m.current > m.baseline * 1.4))
+    .filter(m => m.baselineKnown !== false && m.baseline >= 1 && (m.streak >= 4 || m.current > m.baseline * 1.4))
     .sort((a, b) => (b.streak - a.streak) || (b.current - a.current))
     .slice(0, 3);
   document.getElementById('wins').innerHTML = wins.length
@@ -1972,7 +1982,7 @@ const SORTERS = {
   name: a => a.name, tier: a => a.rate, tenure: a => a.tenureMo,
   baseline: a => a.baseline, current: a => a.current,
   last: a => a.daysSince === Infinity ? 99999 : a.daysSince,
-  risk: a => ({ red:0, amber:1, low:2, new:3, green:4 })[a.risk],
+  risk: a => { const o = { red:0, amber:1, low:2, unknown:3, new:4, green:5 }; return o[a.risk] === undefined ? 9 : o[a.risk]; },
   ltv: a => a.paid
 };
 
@@ -1990,6 +2000,7 @@ function renderMembers(){
     if (q && !a.name.toLowerCase().includes(q) && !a.tier.toLowerCase().includes(q)) return false;
     if (STATE.mFilter === 'all') return true;
     if (STATE.mFilter === 'green') return a.risk === 'green';
+    if (STATE.mFilter === 'unknown') return a.risk === 'unknown';
     if (STATE.mFilter === 'amber') return a.risk === 'amber' || a.risk === 'low';
     return a.risk === STATE.mFilter;
   });
@@ -2004,7 +2015,8 @@ function renderMembers(){
     `${rows.length} of ${G.active.length} active members. Click anyone for their full history.`;
 
   document.getElementById('m-body').innerHTML = rows.map(a => {
-    const chg = a.baseline > 0 ? (a.current - a.baseline) / a.baseline * 100 : 0;
+    const known = a.baselineKnown !== false;
+    const chg = known && a.baseline > 0 ? (a.current - a.baseline) / a.baseline * 100 : 0;
     const chgTxt = a.baseline > 0 ? (chg >= 0 ? '+' : '') + Math.round(chg) + '%' : '\u2014';
     const chgTitle = a.baseline <= 0 ? 'Not enough history to set a usual yet'
       : a.current === a.baseline ? `${fmt1(a.baseline)} a week, unchanged`
@@ -2013,8 +2025,8 @@ function renderMembers(){
       <td><span style="display:inline-flex;align-items:center;gap:9px">${initialsAvatar(a)}<span class="mname">${esc(a.name)}</span></span></td>
       <td style="color:var(--text-2)">${esc(a.tier)}<span style="color:var(--muted)"> \u00b7 ${fmtMoney(a.rate)}</span></td>
       <td class="r tnum">${esc(tenureShort(a.tenureMo))}</td>
-      <td class="r tnum">${fmt1(a.baseline)}</td>
-      <td class="r tnum">${fmt1(a.current)}<span title="${esc(chgTitle)}" style="color:${chg < -25 ? 'var(--critical)' : chg > 25 ? 'var(--good)' : 'var(--muted)'}; font-size:11px"> ${chgTxt}</span></td>
+      <td class="r tnum">${known ? fmt1(a.baseline) : '&mdash;'}</td>
+      <td class="r tnum">${known ? fmt1(a.current) : '&mdash;'}<span title="${esc(chgTitle)}" style="color:${chg < -25 ? 'var(--critical)' : chg > 25 ? 'var(--good)' : 'var(--muted)'}; font-size:11px"> ${chgTxt}</span></td>
       <td class="r">${sparkline(a.wk.slice(0, 12).reverse(), { w: 92, h: 24, color: 'var(--s1)' })}</td>
       <td class="r" style="color:${a.daysSince >= 14 ? 'var(--critical)' : 'var(--text-2)'}">${esc(lastSeenText(a))}</td>
       <td>${riskPill(a.risk)}</td>
@@ -2244,7 +2256,8 @@ function openMember(id){
   const a = G.all.find(m => m.id === id); if (!a) return;
   const wk = a.wk.slice(0, 26).reverse();
   const byHour = new Array(24).fill(0);
-  for (const t of a.scans) byHour[hourOf(t)]++;
+  const pastScans = a.scans.filter(t => t < TODAY + DAY);
+  for (const t of pastScans) byHour[hourOf(t)]++;
   const topHours = byHour.map((v, h) => ({ h, v })).sort((x, y) => y.v - x.v).slice(0, 3).filter(x => x.v > 0);
 
   document.getElementById('drawer-body').innerHTML = `
@@ -2264,7 +2277,7 @@ function openMember(id){
       <div class="card-b"><dl class="kv">
         <dt>Joined</dt><dd>${new Date(a.join).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</dd>
         <dt>Time as a member</dt><dd>${esc(tenureText(a.tenureMo))}</dd>
-        <dt>Total visits</dt><dd>${fmtInt(a.scans.length)}</dd>
+        <dt>Total visits</dt><dd>${fmtInt(pastScans.length)}</dd>
         <dt>Usual week</dt><dd>${fmt1(a.baseline)} visits</dd>
         <dt>Last two weeks</dt><dd style="color:${a.current < a.baseline * .7 ? 'var(--critical)' : 'var(--text)'}">${fmt1(a.current)} visits</dd>
         <dt>Last visit</dt><dd>${a.last ? new Date(a.last).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' \u00b7 ' + esc(lastSeenText(a)) : 'never'}</dd>
@@ -2433,6 +2446,7 @@ function buildMapping(){
 function readFile(f, which, outId){
   const out = document.getElementById(outId);
   FILES[which] = null;          // never leave a stale file armed behind a failure
+  document.getElementById('mapping').hidden = true;
   const r = new FileReader();
   r.onload = () => {
     const p = parseCSV(r.result);
@@ -2448,6 +2462,11 @@ function readFile(f, which, outId){
 
 function importData(){
   const M = FILES.members, S = FILES.scans;
+  if (!M || !S){
+    document.getElementById('import-warn').innerHTML =
+      '<span style="color:var(--brand)">Load both files again before importing.</span>';
+    return;
+  }
   const gv = id => +document.getElementById(id).value;
   const ci = { name:gv('c-name'), first:gv('c-first'), last:gv('c-last'), id:gv('c-id'),
                join:gv('c-join'), tier:gv('c-tier'), rate:gv('c-rate'), end:gv('c-end') };
@@ -2473,7 +2492,7 @@ function importData(){
   // than having no rates at all.
   const RATE_SAMPLES = Object.create(null);
   const members = [], byKey = new Map(), dupNames = new Set();
-  let id = 1, badDates = 0;
+  let id = 1, badDates = 0, badRates = 0, badEnds = 0;
   for (const r of M.rows){
     const nm = ci.name >= 0 ? (r[ci.name] || '').trim()
              : [(r[ci.first] || '').trim(), (r[ci.last] || '').trim()].filter(Boolean).join(' ');
@@ -2483,9 +2502,11 @@ function importData(){
     const parts = nm.split(/\s+/);
     const tier = ci.tier >= 0 ? (r[ci.tier] || '').trim() || 'Membership' : 'Membership';
     // blank and zero are different: a comped member really does pay nothing
-    const rateRaw = ci.rate >= 0 ? String(r[ci.rate] == null ? '' : r[ci.rate]).replace(/[^0-9.]/g, '') : '';
-    const rateNum = rateRaw === '' ? null : parseFloat(rateRaw);
-    const rate = (rateNum === null || isNaN(rateNum)) ? null : rateNum;
+    // strip only currency symbols, spaces and thousands separators, then require
+    // the whole remaining value to be a plain non-negative number
+    const rateRaw = ci.rate >= 0 ? String(r[ci.rate] == null ? '' : r[ci.rate]).trim().replace(/[$\u00a3\u20ac,\s]/g, '') : '';
+    const rate = /^\d+(\.\d+)?$/.test(rateRaw) ? parseFloat(rateRaw) : null;
+    if (ci.rate >= 0 && rateRaw !== '' && rate === null) badRates++;
     const m = {
       id: id++, first: parts[0], last: parts.slice(1).join(' ') || '',
       name: nm, initials: (parts[0][0] || '?') + ((parts[1] || '')[0] || ''),
@@ -2493,13 +2514,20 @@ function importData(){
       tier, rate: rate === null ? 0 : rate, rateFixed: rate, join: startOfDay(jd), cancel: null, scans: []
     };
     if (ci.end >= 0){
-      const ed = parseWhen(r[ci.end]);
+      const endRaw = String(r[ci.end] == null ? '' : r[ci.end]).trim();
+      const ed = parseWhen(endRaw);
       if (ed && ed.getTime() > m.join) m.cancel = startOfDay(ed);
+      else if (endRaw !== '') badEnds++;
     }
     (RATE_SAMPLES[tier] = RATE_SAMPLES[tier] || []); if (rate !== null && rate > 0) RATE_SAMPLES[tier].push(rate);
     members.push(m);
     let clash = false;
-    const claim = k => { if (byKey.has(k)) clash = true; else byKey.set(k, m); };
+    // only a key already owned by a DIFFERENT member is a real collision
+    const claim = k => {
+      const owner = byKey.get(k);
+      if (owner && owner !== m) clash = true;
+      else byKey.set(k, m);
+    };
     claim(nm.toLowerCase());
     claim(nameKey(nm));
     if (ci.id >= 0 && r[ci.id]) claim(String(r[ci.id]).trim().toLowerCase());
@@ -2516,7 +2544,13 @@ function importData(){
     if (!d){ badTs++; continue; }
     m.scans.push(d.getTime()); matched++;
   }
-  for (const m of members){ m.scans.sort((a, b) => a - b); if (m.scans.length && m.join > m.scans[0]) m.join = startOfDay(m.scans[0]); }
+  // Their join date is contractual. An entry before it is a data problem worth
+  // reporting, not a reason to silently move the date and corrupt tenure.
+  let preJoin = 0;
+  for (const m of members){
+    m.scans.sort((a, b) => a - b);
+    if (m.scans.length && m.scans[0] < m.join) preJoin++;
+  }
 
   if (!members.length || !matched){
     warn.innerHTML = `<span style="color:var(--brand)">${!members.length ? 'No members were loaded, because none had both a readable name and a join date' : 'No visits were loaded, because the IDs or names in the two files did not match'}. Check the column choices above.</span>`;
@@ -2545,10 +2579,14 @@ function importData(){
     (unmatched ? ` ${plural(unmatched, 'entry', 'entries')} did not match a member.` : '') +
     (badDates ? ` ${plural(badDates, 'member', 'members')} skipped for an unreadable join date.` : '') +
     (badTs ? ` ${plural(badTs, 'entry', 'entries')} had an unreadable date and time.` : '') +
+    (badRates ? ` ${plural(badRates, 'member', 'members')} had a rate that could not be read and fell back to the tier rate.` : '') +
+    (badEnds ? ` ${plural(badEnds, 'member', 'members')} had an unreadable cancellation date and are still counted as active.` : '') +
     (noPrice ? ` No monthly-rate column was chosen, so every membership is priced at ${fmtMoney(fallback)} until you set the real rates on the Business screen.` : '') +
+    (preJoin ? ` ${plural(preJoin, 'member has', 'members have')} entries dated before their join date, which usually means the two files disagree.` : '') +
     (dupNames.size ? ` ${fmtInt(dupNames.size)} member${dupNames.size === 1 ? ' shares a name or ID with another record' : 's share a name or ID with another record'}${ci.id >= 0 ? ', so their scans were matched on ID where possible' : '; their visits went to whichever record came first'}. Add an ID column and load the files again to be sure they are right.` : '') +
     (noChurn ? ` Nobody in this file has a cancellation date, so churn, length of engagement and lifetime value cannot be worked out. Re-export including cancelled members and choose the cancellation-date column.` : '');
   STATE.contacted.clear();
+  if (STATE.snoozed) STATE.snoozed.clear();   // ids restart at 1 on every import
   const readAt = new Date();
   const readTime = String(readAt.getHours()).padStart(2, '0') + ':' + String(readAt.getMinutes()).padStart(2, '0');
   setFreshness(`EVSC data \u00b7 ${plural(members.length, 'member', 'members')} \u00b7 ${plural(matched, 'visit', 'visits')} \u00b7 loaded ${readTime}`);
