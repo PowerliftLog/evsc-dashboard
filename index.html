@@ -589,7 +589,7 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
     <div class="sec sec-onboard">
       <div class="sec-h">
         <h2>Never really started</h2>
-        <span class="sub">Joined in the last 90 days and never got into a routine. The easiest people to keep.</span>
+        <span class="sub">New members who have not found a routine yet. Usually the easiest to help.</span>
       </div>
       <div class="calls" id="onboard"></div>
     </div>
@@ -676,7 +676,7 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
     <div class="card sec">
       <div class="card-h">
         <h3>Who is on the floor at class times</h3>
-        <span class="sub">Scans within 20 minutes of a class start. A door scan cannot tell a class from an open-gym session, and 20 is an assumed cap.</span>
+        <span class="sub">Visits within 20 minutes of a class start. A door entry cannot tell a class apart from an open-gym session, and 20 is an assumed cap.</span>
       </div>
       <div class="card-b"><div class="tablewrap" style="border:0"><table id="class-table" style="min-width:600px"></table></div></div>
     </div>
@@ -721,12 +721,12 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
     </div>
 
     <div class="card sec">
-      <div class="card-h"><h3>Where you stand</h3><span class="sub">Against the Two-Brain benchmarks most gym owners are measured on</span></div>
+      <div class="card-h"><h3>Where you stand</h3><span class="sub">Compared with the Two-Brain benchmarks</span></div>
       <div class="card-b"><div class="grid" id="benchmarks" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:20px"></div></div>
     </div>
 
     <div class="card sec">
-      <div class="card-h"><h3>The first month predicts everything</h3></div>
+      <div class="card-h"><h3>First-month visits and staying power</h3></div>
       <div class="card-b"><div id="first30"></div></div>
     </div>
   </section>
@@ -1158,12 +1158,18 @@ const NEEDS_CALL = m => m.risk === 'red' || m.risk === 'amber' || m.risk === 'lo
 /* ------------------------------------------------- why + what to say ---- */
 /* Tenure reads badly in raw months once you get past a year or so. */
 function tenureText(mo){
+  const days = Math.round(mo * 30.44);
+  if (days < 1)  return 'less than a day';
+  if (days < 14) return days === 1 ? '1 day' : days + ' days';
   if (mo < 1.5) return 'a few weeks';
   if (mo < 18)  return Math.round(mo) + ' months';
   const y = Math.round(mo / 6) / 2;
   return (y % 1 === 0 ? y : y.toFixed(1)) + ' years';
 }
 function tenureShort(mo){
+  const days = Math.round(mo * 30.44);
+  if (days < 1)  return 'joined today';
+  if (days < 31) return days === 1 ? '1 day' : days + ' days';
   return mo < 18 ? Math.round(mo) + ' mo' : (Math.round(mo / 6) / 2) + ' yr';
 }
 /* Variants are chosen by member id, so the same person always gets the same
@@ -1213,9 +1219,9 @@ function reasonFor(a){
   }
   if (a.risk === 'low'){
     return vary(a, [
-      `Under a visit a week, and has been for months. Paying ${fmtMoney(a.rate)} for something they barely touch, which makes that renewal fragile.`,
-      `Averages ${b} visits a week on a ${fmtMoney(a.rate)} membership. People cancel what they do not use.`,
-      `${ten} as a member and still under a visit a week. The value is not landing, and the price is.`
+      `Under a visit a week, and has been for months. A check-in could help them find a routine that fits.`,
+      `Averages ${b} visits a week on a ${fmtMoney(a.rate)} membership. They may need a hand getting more out of it.`,
+      `${ten} as a member and still under a visit a week. They may not be getting what they hoped for.`
     ]);
   }
   return '';
@@ -1223,45 +1229,46 @@ function reasonFor(a){
 
 /* August is the one sending these, so he never refers to himself in the third
    person, and members who train alone get no coach name at all. */
+/* These are texts August sends to people he knows by name, and EVSC's own words
+   are "no judgement or criticism along the way". So: no guilt, no assuming why
+   someone stopped coming, no invented plans, and never a line about what their
+   absence costs him. Warm first, and always leaving them room not to reply. */
 function messageFor(a){
   const f = a.first, spot = a.you || a.archLabel;
   const coach = a.coach;
-  const nudge = coach ? ` Coach ${coach} was asking after you.`
-              : a.programmed ? ` I've got your next block written whenever you want it.`
-              : '';
-  const offer = coach ? `Coach ${coach}`
-              : a.programmed ? `me`
-              : `one of the coaches`;
+  const withCoach = coach ? ` Coach ${coach} would be glad to help you pick a time.` : '';
+  const helper = coach ? `Coach ${coach}` : a.programmed ? `me` : `one of the coaches`;
+
   if (a.risk === 'red' && a.daysSince >= GHOST_DAYS)
     return vary(a, [
-      `Hey ${f}, haven't seen you at ${spot} in a couple of weeks and that's not like you. Everything alright?` + nudge,
-      `${f}, you've been off the radar a couple of weeks now. No pressure, just checking you're okay.` + (a.crew ? ` The ${a.crew} crew has been asking.` : nudge),
-      `Hey ${f}, noticed you've been out for a bit. If something's come up, tell me and we'll work around it. If it's just been a rough couple of weeks, come in Monday and we'll ease you back.`,
-      `${f}, you've been a fixture at ${spot} for a long time and it's quiet in here without you. Everything good? Give me a shout either way.`,
+      `Hey ${f}, haven't seen you at ${spot} in a couple of weeks. No pressure at all, just wanted to check you're doing okay.`,
+      `${f}, it's been a little while. Hope everything's alright. Whenever you're ready, we'll pick up where you left off.`,
+      `Hey ${f}, we've missed you at ${spot}. If something's getting in the way, I'm happy to help. If not, the door's open whenever suits you.`,
+      `${f}, just checking in. No agenda, only wanted to see how you're doing.`
     ]);
   if (a.risk === 'red')
     return vary(a, [
-      `Hey ${f}, you've been in a lot less than usual lately. If the schedule stopped working, tell me what does and I'll get you into a time that fits. I'd rather not lose you over a calendar problem.`,
-      `${f}, noticed your training's dropped off this month. Anything I can help with? Happy to find you a time that fits better, or sit down and reset the plan.`,
-      `Hey ${f}, you've gone from a few times a week to barely getting in. What changed? If it's the schedule we can fix that, and if you just need a plan to follow, ${offer} can sort you out.`
+      `Hey ${f}, I haven't seen you as often lately. Is there anything I can do to make training easier to fit in?`,
+      `${f}, looks like it's been a harder few weeks to get in. If your usual time no longer works, let's find one that does.`,
+      `Hey ${f}, if you'd like a hand getting back into a rhythm, ${helper} can help you sort out a plan.`
     ]);
   if (a.risk === 'amber' && a.daysSince >= 7)
     return vary(a, [
-      `${f}, missed you this week at ${spot}. Everything good?` + (coach ? ` Coach ${coach} has something planned Thursday you'd like.` : a.programmed ? ` Your next session is written and waiting.` : ''),
-      `Hey ${f}, no sign of you this week. Just checking in. Same time Monday?`,
-      `${f}, you were missed at ${spot} this week. All good on your end? Door's open.`
+      `${f}, missed seeing you at ${spot} this week. Everything okay?` + withCoach,
+      `Hey ${f}, no sign of you this week. Hope all's well. Come by whenever works for you.`,
+      `${f}, we missed you at ${spot}. Nothing needed from you, just saying hello.`
     ]);
   if (a.risk === 'amber')
     return vary(a, [
-      `Hey ${f}, you've been in a bit less this month. Anything getting in the way? Happy to look at a different time if the hours you use are a squeeze.`,
-      `${f}, noticed the frequency has dipped a little. Nothing dramatic, just want to make sure the schedule still works for you.`,
-      `Hey ${f}, you've dropped a session or two a week lately. Want fifteen minutes with ${offer} to reset the plan?`
+      `Hey ${f}, I haven't seen you quite as often lately. Anything I can help with?`,
+      `${f}, if the time you usually train has got awkward, we can look at another one.`,
+      `Hey ${f}, want fifteen minutes with ${helper} to reset your plan? Only if it's useful.`
     ]);
   if (a.risk === 'low')
     return vary(a, [
-      `Hey ${f}, you're on the ${a.tier} but only getting in here and there. Want to sit down for ten minutes and build a plan you'd actually keep? Or I can move you to a smaller plan that fits how you train. Either way I'd rather you stay.`,
-      `${f}, honest question: is the ${a.tier} the right fit? You're not using much of it. I'd rather put you on something that matches how you train than have you cancel in three months.`,
-      `Hey ${f}, you've been paying for more gym than you're using. Come see me and we'll either get you in more often or get you on a plan that makes sense.`
+      `Hey ${f}, I want to make sure your membership still fits what you need. Want to talk it through?`,
+      `${f}, if another membership would suit you better, we can look at Open Gym, Full Membership or Personal Training together.`,
+      `Hey ${f}, if you'd like help finding a routine that fits your week, I'm happy to sit down for ten minutes.`
     ]);
   return '';
 }
@@ -1271,15 +1278,15 @@ function onboardReason(a){
   const total = a.scans.length;
   const first30 = a.scans.filter(t => t < a.join + 30 * DAY).length;
   if (total === 0)
-    return { why: `Signed up <b>${a.tenureDays} days ago</b> and has <b>never scanned in</b>. Paying ${fmtMoney(a.rate)} a month for a door they have not opened.`,
+    return { why: `Joined <b>${a.tenureDays} days ago</b> and has <b>not been in yet</b>. Paying ${fmtMoney(a.rate)} a month for a door they have not opened.`,
              msg: vary(a, [
-               `Hey ${a.first}, welcome to EVSC, though I don't think we've actually met yet. Want me to walk you through the floor this week? Twenty minutes, no charge, and you'll know exactly where to start.`,
-               `${a.first}, you signed up a few weeks back and we haven't seen you yet. That first session is the hard one. Tell me a day that works and I'll meet you at the door.`
+               `Hey ${a.first}, welcome to EVSC. I'd love to help you feel at home here. Want me to show you around this week?`,
+               `Hey ${a.first}, just checking in to see how you're feeling about getting started. If you'd like, I can meet you at the door and walk you through the floor. No judgement either way.`
              ]) };
-  return { why: `<b>${first30} visits</b> in their first month. The members who stay hit eight or more. ${wks} weeks in, ${total} visits total.`,
+  return { why: `<b>${first30} ${first30 === 1 ? 'visit' : 'visits'}</b> in their first month. ${wks} weeks in, ${total} ${total === 1 ? 'visit' : 'visits'} altogether.`,
            msg: vary(a, [
-             `Hey ${a.first}, you're ${wks} weeks in. How's it going so far? The members who end up loving this place pick two or three fixed days and stick to them. Want help locking yours in?`,
-             `${a.first}, ${wks} weeks in and I want to make sure you're set up properly. Ten minutes with ${a.coach ? 'Coach ' + a.coach : 'me'} this week and you'll have a plan instead of guesswork.`
+             `Hey ${a.first}, you're ${wks} weeks in. How's it going so far? Would it help to pick a couple of days that fit your week? Happy to work it out with you.`,
+             `${a.first}, ${wks} weeks in and I want to make sure you're set up well. Want to take ten minutes with ${a.coach ? 'Coach ' + a.coach : 'me'} this week and make sure your plan feels clear?`
            ]) };
 }
 
@@ -1288,13 +1295,13 @@ function winReason(a){
   if (a.streak >= 3)
     return { why: `<b>${a.streak} weeks straight</b> of three or more visits. ${tenureText(a.tenureMo)} in and still showing up.`,
              msg: vary(a, [
-               `${a.first}, ${a.streak} weeks straight. Noticed, and it's the kind of consistency that makes this place what it is. Keep going.`,
-               `${a.first}, you haven't missed a week in ${a.streak}. That's the whole game. Nice work.`
+               `${a.first}, ${a.streak} weeks straight. I noticed, and it's the kind of consistency that makes this place what it is.`,
+               `${a.first}, you haven't missed a week in ${a.streak}. Really nice work.`
              ]) };
   return { why: `Up from <b>${b} to ${c} visits a week</b>. Something clicked in the last month.`,
            msg: vary(a, [
-             `${a.first}, you've picked it up noticeably in the last few weeks. Nice work. Anything you want to aim at? ${a.coach ? 'Coach ' + a.coach : 'We'} can build around it.`,
-             `${a.first}, big jump in your training lately and it shows. Want to put a goal on it?`
+             `${a.first}, I've noticed how consistently you've been showing up lately. Nice work. Is there something you'd like to work toward next?`,
+             `${a.first}, you've really picked things up over the last few weeks. Anything you want to aim at? ${a.coach ? 'Coach ' + a.coach : 'We'} can build around it.`
            ]) };
 }
 
@@ -1911,7 +1918,7 @@ function renderAction(){
       ? `<div class="card empty"><strong>Everyone is snoozed</strong>Use \u201cshow them\u201d below whenever you're ready to bring everyone back.</div>`
       : `<div class="card empty"><strong>Nobody is slipping</strong>Every member is training at or above their usual rate.</div>`;
   document.getElementById('calls-sub').textContent =
-    `${list.length} ${list.length === 1 ? 'member' : 'members'}, ranked by how much you would lose and how fast you are losing them.`;
+    `${list.length} ${list.length === 1 ? 'member' : 'members'} worth a check-in, with the biggest changes first.`;
   document.getElementById('tab-count').textContent = list.length;
   const more = document.getElementById('calls-more');
   more.hidden = list.length <= 8;
@@ -2051,7 +2058,7 @@ function renderUtil(){
       kpi({ label:'Trained 4-8pm weekdays', value: Math.round(U.inPeakWindow * 100), unit:'%',
             foot:`${Math.round(U.offPeak * 100)}% train 9am to 4pm, when the floor is nearly empty` }) +
       kpi({ label:'Quietest hour', value: fmtTime(U.deadH, 0),
-            foot:`${fmt1(U.dead)} visits an hour. The cheapest space you already pay for.` });
+            foot:`${fmt1(U.dead)} visits an hour. The quietest time in the gym.` });
 
   const heatCard = document.getElementById('heat').closest('.card');
   let heatSummary = document.getElementById('heat-summary');
@@ -2133,10 +2140,10 @@ function renderUtil(){
   const listOf = arr => arr.length === 1 ? arr[0]
     : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
   const recos = [];
-  if (over.length) recos.push(`<b>${esc(listOf(over.map(c => c.name + ' ' + c.time)))}</b> ${over.length === 1 ? 'is' : 'are'} at or past the ${CLASS_CAP}-person cap. Overcrowding at peak is one of the most-cited reasons members give for quitting, so either add a coach to that hour or run a second heat.`);
-  if (under.length) recos.push(`<b>${esc(listOf(under.slice(0, 3).map(c => c.name + ' ' + c.time + ' ' + c.dayLabel)))}</b> ${under.length === 1 ? 'is running' : 'are running'} under a third full. That is paid coaching time against a near-empty floor: merge them, or move the slot to an hour people actually want.`);
-  recos.push(`Only <b>${Math.round(U.offPeak * 100)}%</b> of weekday training happens between 9am and 4pm, and ${fmtTime(U.deadH, 0)} is dead. An off-peak rate for that window is the standard play: gyms that offer one report higher overall utilization and lower churn, and it sells capacity you are already paying rent on.`);
-  recos.push(`The floor gets to <b>${peakOccPct}%</b> of an assumed ${CAPACITY}-person capacity at its fullest, around ${esc(U.maxOccTime)}. Below 100% you have room; the number to watch is whether it climbs as you grow. Tell me your real floor and class caps and these two numbers get exact.`);
+  if (over.length) recos.push(`<b>${esc(listOf(over.map(c => c.name + ' ' + c.time)))}</b> ${over.length === 1 ? 'is' : 'are'} at or past the ${CLASS_CAP}-person cap. That is close to the assumed 20-person limit. Worth checking the real class count before adding a coach or a second heat.`);
+  if (under.length) recos.push(`<b>${esc(listOf(under.slice(0, 3).map(c => c.name + ' ' + c.time + ' ' + c.dayLabel)))}</b> ${under.length === 1 ? 'is running' : 'are running'} under a third full. These look lightly attended. Worth checking the class roster before combining them or trying a different time.`);
+  recos.push(`Only <b>${Math.round(U.offPeak * 100)}%</b> of weekday training happens between 9am and 4pm, and ${fmtTime(U.deadH, 0)} is dead. If you wanted to bring more people in during the quiet hours, an off-peak Open Gym rate would be one thing to try.`);
+  recos.push(`The floor gets to <b>${peakOccPct}%</b> of an assumed ${CAPACITY}-person capacity at its fullest, around ${esc(U.maxOccTime)}. Below 100% there is room. These estimates assume a 42-person floor and a 20-person class limit, so tell me the real ones and they will be right.`);
   document.getElementById('util-reco').innerHTML = recos.map(r => `<p style="margin-bottom:10px">${r}</p>`).join('');
 }
 
@@ -2149,22 +2156,22 @@ function renderGrowth(){
 
   document.getElementById('growth-kpis').innerHTML =
     (hasChurn
-      ? kpi({ label:'Monthly churn', value: fmt1(G.churnAvg), unit:'%', inverse: true,
-              delta: last.churn - prev.churn, deltaText: fmt1(Math.abs(last.churn - prev.churn)) + ' pts MoM',
-              foot:'12-month average \u00b7 3\u20135% is the healthy band' })
-      : kpi({ label:'Monthly churn', value: '\u2014',
-              foot:'No cancellations in the loaded data. Map a cancellation-date column to calculate this.' })) +
+      ? kpi({ label:'Monthly cancellation rate', value: fmt1(G.churnAvg), unit:'%', inverse: true,
+              delta: last.churn - prev.churn, deltaText: fmt1(Math.abs(last.churn - prev.churn)) + ' pts vs last month',
+              foot:'12-month average \u00b7 3-5% is the healthy range' })
+      : kpi({ label:'Monthly cancellation rate', value: '\u2014',
+              foot:'No cancellations in the loaded data. Choose a cancellation-date column to work this out.' })) +
     kpi({ label:'Revenue per member', value: fmtMoney(G.arm),
-          foot:`Benchmark for a gym this size is about $205` }) +
+          foot:`Each month, on average. ARM \u00b7 the benchmark for a gym this size is about $205.` }) +
     (hasLeg
-      ? kpi({ label:'Length of engagement', value: fmt1(G.leg), unit:'mo',
-              foot:`How long a departing member stayed \u00b7 industry average 7.8 months` }) +
-        kpi({ label:'Lifetime value', value: fmtMoney(G.ltv),
+      ? kpi({ label:'Average membership length', value: fmt1(G.leg), unit:'mo',
+              foot:`How long a member stayed before cancelling. LEG \u00b7 industry average is 7.8 months.` }) +
+        kpi({ label:'Revenue per member, lifetime', value: fmtMoney(G.ltv),
               foot:`Projected value of one retained member at today's revenue and engagement` })
       : kpi({ label:'Length of engagement', value: '\u2014',
-              foot:'No cancellation in the last 12 months to measure against. Map a cancellation-date column and include cancelled clients.' }) +
-        kpi({ label:'Lifetime value', value: '\u2014',
-              foot:'Needs length of engagement, which needs cancellation dates.' }));
+              foot:'No cancellation in the last 12 months to measure against. Choose a cancellation-date column and include cancelled members.' }) +
+        kpi({ label:'Revenue per member, lifetime', value: '\u2014',
+              foot:'Needs average membership length, which needs cancellation dates.' }));
 
   lineChart(document.getElementById('chart-members'), {
     labels: M.map(m => m.label), series: [{ name:'Active members', color:'var(--s1)', values: M.map(m => m.active), fill: true }],
@@ -2189,10 +2196,10 @@ function renderGrowth(){
 
   const bench = [
     { label:'Active members', v: G.active.length, target: 150, fmt: fmtInt, note:'Two-Brain\'s first milestone' },
-    { label:'Revenue per member', v: G.arm, target: 205, fmt: fmtMoney, note:'ARM \u00b7 the $100k-owner benchmark' }
+    { label:'Revenue per member', v: G.arm, target: 205, fmt: fmtMoney, note:'ARM \u00b7 each month, on average' }
   ].concat(hasLeg ? [
-    { label:'Length of engagement', v: G.leg, target: 13, fmt: v => fmt1(v) + ' mo', note:'LEG \u00b7 industry average is 7.8' },
-    { label:'Lifetime value', v: G.ltv, target: 2665, fmt: fmtMoney, note:'ARM \u00d7 LEG' }
+    { label:'Average membership length', v: G.leg, target: 13, fmt: v => fmt1(v) + ' mo', note:'LEG \u00b7 industry average is 7.8 months' },
+    { label:'Revenue per member, lifetime', v: G.ltv, target: 2665, fmt: fmtMoney, note:'LTV \u00b7 revenue per member times average membership length' }
   ] : []);
   document.getElementById('benchmarks').innerHTML = bench.map(b => {
     const scale = Math.max(b.v, b.target) * 1.25;
@@ -2210,7 +2217,7 @@ function renderGrowth(){
 
   const ORD = ['var(--ord-1)', 'var(--ord-2)', 'var(--ord-3)', 'var(--ord-4)'];
   document.getElementById('first30').innerHTML =
-    `<p class="note" style="margin-bottom:16px">Every member who joined at least six months ago, grouped by how many times they came in during their first 30 days \u2014 and whether they were still paying at month six. This is the single cheapest lever you have.</p>` +
+    `<p class="note" style="margin-bottom:16px">Every member who joined at least six months ago, grouped by how many times they came in during their first 30 days \u2014 and whether they were still paying at month six. It shows whether early visits went together with staying longer.</p>` +
     L.buckets.map((b, i) => `<div style="display:flex; align-items:center; gap:14px; margin-bottom:11px">
       <span style="width:96px; font-size:12px; color:var(--text-2)">${esc(b.label)}</span>
       <span style="flex:1; height:22px; background:var(--sunken); border-radius:5px; overflow:hidden; display:block">
@@ -2218,7 +2225,7 @@ function renderGrowth(){
       <span class="num" style="font-size:20px; width:56px; text-align:right; color:${b.n ? 'var(--text)' : 'var(--muted)'}">${b.n ? Math.round(b.pct) + '%' : '&mdash;'}</span>
       <span class="cap" style="width:88px; font-size:10.5px">${b.n ? b.n + ' members' : 'nobody yet'}</span>
     </div>`).join('') +
-    `<p class="note" style="margin-top:14px">The gap between the top and bottom rows is your onboarding problem, stated in one number. Getting a new member to <b>8 visits in their first month</b> is worth more than any discount you could offer.</p>` +
+    `<p class="note" style="margin-top:14px">In this data, members with <b>8 or more visits in their first month</b> stayed longer. That difference is a good place to look for where new members need more help.</p>` +
     `<div style="margin-top:22px; border-top:1px solid var(--line); padding-top:16px">
       <div class="eyebrow" style="margin-bottom:10px">Membership rates used for revenue \u2014 edit to match your real pricing</div>
       <div id="rate-editor" style="display:flex; gap:10px; flex-wrap:wrap"></div>
@@ -2412,7 +2419,7 @@ function buildMapping(){
     `<div class="eyebrow" style="color:var(--text-2)">From your member file</div>` +
     row('Member name', 'or pick first name below', selHTML('c-name', M.headers, guessCol(M.headers, 'name'), true)) +
     row('First / last name', 'if the name is split in two', selHTML('c-first', M.headers, guessCol(M.headers, 'first'), true) + selHTML('c-last', M.headers, guessCol(M.headers, 'last'), true)) +
-    row('Member ID', 'used to match door scans', selHTML('c-id', M.headers, guessCol(M.headers, 'id'), true)) +
+    row('Member ID', 'used to match entries to members', selHTML('c-id', M.headers, guessCol(M.headers, 'id'), true)) +
     row('Join date', 'required', selHTML('c-join', M.headers, guessCol(M.headers, 'join'), false)) +
     row('Membership', '', selHTML('c-tier', M.headers, guessCol(M.headers, 'tier'), true)) +
     row('Monthly rate', 'if a rate is missing, the dashboard uses the rate set on the Business screen', selHTML('c-rate', M.headers, guessCol(M.headers, 'rate'), true)) +
