@@ -1,5 +1,5 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%2314100F%22/%3E%3Cpath d=%22M8 22V10h4.6l3.4 7 3.4-7H24v12h-3.4v-6.4L17.4 22h-2.8l-3.2-6.4V22z%22 fill=%22%23EE2738%22/%3E%3C/svg%3E">
-<title>EVSC Member Intelligence</title>
+<title>EVSC Member Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap">
@@ -535,7 +535,7 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
       <img id="logo" alt="East Valley Strength &amp; Conditioning">
       <div class="bt">
         <strong>East Valley Strength</strong>
-        <span>Member Intelligence</span>
+        <span>Member dashboard</span>
       </div>
     </div>
     <span class="freshness" id="freshness"><i></i><span id="freshness-text"></span></span>
@@ -552,17 +552,17 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
 
 <nav class="tabs" aria-label="Sections">
   <div class="wrap tabs-in" role="tablist">
-    <button class="tab" role="tab" aria-selected="true"  data-screen="action">Action Center<span class="cnt" id="tab-count">0</span></button>
+    <button class="tab" role="tab" aria-selected="true"  data-screen="action">Today<span class="cnt" id="tab-count">0</span></button>
     <button class="tab" role="tab" aria-selected="false" data-screen="members">Members</button>
-    <button class="tab" role="tab" aria-selected="false" data-screen="util">Utilization</button>
-    <button class="tab" role="tab" aria-selected="false" data-screen="growth">Growth</button>
+    <button class="tab" role="tab" aria-selected="false" data-screen="util">Gym traffic</button>
+    <button class="tab" role="tab" aria-selected="false" data-screen="growth">Business</button>
   </div>
 </nav>
 
 <main class="wrap">
 
   <!-- &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; ACTION CENTER &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; -->
-  <section class="screen" id="screen-action" role="tabpanel" aria-label="Action Center">
+  <section class="screen" id="screen-action" role="tabpanel" aria-label="Today">
     <section class="narrative" aria-label="Today at a glance">
       <div class="greet">
         <span class="hello" id="nar-hello">&mdash;</span>
@@ -583,13 +583,13 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
       </div>
       <div class="calls" id="calls"></div>
       <div style="margin-top:12px"><button class="btn" id="calls-more" hidden>Show the rest</button></div>
-      <p class="note" style="margin-top:12px">Risk is always measured over the last 14 days against each member's own normal, so this list does not change when you switch the period at the top. Everything else on the dashboard does.</p>
+      <p class="note" style="margin-top:12px">Everyone here is measured against their own usual weekly visits over the last 14 days, so this list does not change when you switch the period at the top. Everything else on the dashboard does.</p>
     </div>
 
     <div class="sec sec-onboard">
       <div class="sec-h">
-        <h2>Never got started</h2>
-        <span class="sub">Joined in the last 90 days and never built a habit. Cheapest saves you have.</span>
+        <h2>Never really started</h2>
+        <span class="sub">Joined in the last 90 days and never got into a routine. The easiest people to keep.</span>
       </div>
       <div class="calls" id="onboard"></div>
     </div>
@@ -597,7 +597,7 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
     <div class="sec sec-wins">
       <div class="sec-h">
         <h2>Worth a word</h2>
-        <span class="sub">Members trending the right way. Two minutes of recognition buys a lot of loyalty.</span>
+        <span class="sub">Members going the right way. Two minutes of recognition goes a long way.</span>
       </div>
       <div class="calls" id="wins"></div>
     </div>
@@ -624,10 +624,10 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
             <th class="sortable" data-sort="name">Member</th>
             <th class="sortable" data-sort="tier">Membership</th>
             <th class="sortable r" data-sort="tenure">Tenure</th>
-            <th class="sortable r" data-sort="baseline">Normal</th>
+            <th class="sortable r" data-sort="baseline">Usual</th>
             <th class="sortable r" data-sort="current">Now</th>
             <th class="r">Last 12 weeks</th>
-            <th class="sortable r" data-sort="last">Last scan</th>
+            <th class="sortable r" data-sort="last">Last visit</th>
             <th class="sortable" data-sort="risk">Status</th>
             <th class="sortable r" data-sort="ltv">Paid to date</th>
           </tr>
@@ -635,13 +635,13 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
         <tbody id="m-body"></tbody>
       </table>
     </div>
-    <p class="note" style="margin-top:12px"><b>Normal</b> is each member's own median visits per week over the 8 weeks before last, not a gym-wide average. <b>Now</b> is their average over the last 14 days. Comparing a member only to themselves is what separates a real churn signal from noise.</p>
+    <p class="note" style="margin-top:12px"><b>Usual</b> is each member's own median visits per week over the 8 weeks before last, not a gym-wide average. <b>Now</b> is their average over the last 14 days. Comparing a member only to themselves is what separates a real churn signal from noise.</p>
   </section>
 
   <!-- &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; UTILIZATION &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; -->
-  <section class="screen" id="screen-util" role="tabpanel" aria-label="Utilization" hidden>
+  <section class="screen" id="screen-util" role="tabpanel" aria-label="Gym traffic" hidden>
     <div class="sec-h" style="margin-bottom:14px">
-      <h2>Floor utilization</h2>
+      <h2>When members train</h2>
       <span class="sub" id="util-sub">&#8212;</span>
     </div>
 
@@ -649,8 +649,8 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
 
     <div class="card sec">
       <div class="card-h">
-        <h3>When the gym is actually full</h3>
-        <span class="sub">Door scans by day and hour. Red underline = a class runs then.</span>
+        <h3>When the gym is busy</h3>
+        <span class="sub">Visits by day and hour. The red line marks a class time.</span>
       </div>
       <div class="card-b">
         <div style="overflow-x:auto"><div class="heat" id="heat"></div></div>
@@ -675,7 +675,7 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
 
     <div class="card sec">
       <div class="card-h">
-        <h3>Class attendance</h3>
+        <h3>Who is on the floor at class times</h3>
         <span class="sub">Scans within 20 minutes of a class start. A door scan cannot tell a class from an open-gym session, and 20 is an assumed cap.</span>
       </div>
       <div class="card-b"><div class="tablewrap" style="border:0"><table id="class-table" style="min-width:600px"></table></div></div>
@@ -692,7 +692,7 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
   <!-- &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; GROWTH &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552; -->
   <section class="screen" id="screen-growth" role="tabpanel" aria-label="Growth" hidden>
     <div class="sec-h" style="margin-bottom:14px">
-      <h2>Business health</h2>
+      <h2>The business</h2>
       <span class="sub" id="growth-sub">&#8212;</span>
     </div>
 
@@ -704,7 +704,7 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
         <div class="card-b"><div id="chart-members"></div></div>
       </div>
       <div class="card">
-        <div class="card-h"><h3>Monthly recurring revenue</h3><span class="sub">Sum of active memberships</span></div>
+        <div class="card-h"><h3>Monthly membership revenue</h3><span class="sub">Sum of active memberships</span></div>
         <div class="card-b"><div id="chart-mrr"></div></div>
       </div>
     </div>
@@ -752,7 +752,7 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
       <div class="eyebrow" style="margin-bottom:8px">1 &#183; Members</div>
       <div class="dropzone" id="dz-members">
         Drop a Mindbody client export here, or <label style="color:var(--brand); cursor:pointer; text-decoration:underline">browse<input type="file" id="f-members" accept=".csv,text/csv" class="visually-hidden"></label>
-        <div class="note" style="margin-top:8px">Needs: a name, a join date, and a membership or rate column.</div>
+        <div class="note" style="margin-top:8px">Needs a name, a join date, and a membership or rate column.</div>
       </div>
       <div id="dz-members-out" class="note" style="margin-top:8px"></div>
     </div>
@@ -760,8 +760,8 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
     <div class="sec">
       <div class="eyebrow" style="margin-bottom:8px">2 &#183; Door scans</div>
       <div class="dropzone" id="dz-scans">
-        Drop your access-control scan log here, or <label style="color:var(--brand); cursor:pointer; text-decoration:underline">browse<input type="file" id="f-scans" accept=".csv,text/csv" class="visually-hidden"></label>
-        <div class="note" style="margin-top:8px">Needs: a member identifier and a scan timestamp. One row per entry.</div>
+        Drop your door-entry log here, or <label style="color:var(--brand); cursor:pointer; text-decoration:underline">browse<input type="file" id="f-scans" accept=".csv,text/csv" class="visually-hidden"></label>
+        <div class="note" style="margin-top:8px">Needs a member ID or name, and the date and time of each entry. One row per entry.</div>
       </div>
       <div id="dz-scans-out" class="note" style="margin-top:8px"></div>
     </div>
@@ -770,8 +770,8 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
       <div class="eyebrow" style="margin-bottom:10px">3 &#183; Match up the columns</div>
       <div id="mapping-body" class="grid" style="gap:12px"></div>
       <div style="display:flex; gap:9px; margin-top:18px; flex-wrap:wrap">
-        <button class="btn btn-primary" id="do-import">Rebuild dashboard</button>
-        <button class="btn" id="reset-demo">Back to demo data</button>
+        <button class="btn btn-primary" id="do-import">Load these files</button>
+        <button class="btn" id="reset-demo">Use demo data</button>
       </div>
       <p class="note" style="margin-top:12px" id="import-warn"></p>
     </div>
@@ -1192,22 +1192,22 @@ function reasonFor(a){
   }
   if (a.risk === 'red'){
     return vary(a, [
-      `Down from <b>${b} to ${c} visits a week</b>, a ${pct}% drop, last seen ${a.daysSince} days ago. ${ten} in.`,
-      `Was at <b>${b} a week</b>, now <b>${c}</b>. That is ${pct}% off their own normal after ${ten}.`,
-      `Cut their training by ${pct}% over the last fortnight, from ${b} down to ${c} a week. ${ten} as a member.`
+      `Usually <b>${b} visits a week</b>, now <b>${c}</b>. That is ${pct}% down, and ${a.daysSince} days since their last visit. ${ten} in.`,
+      `Was at <b>${b} a week</b>, now <b>${c}</b>. That is ${pct}% below their usual, after ${ten} here.`,
+      `Training is down ${pct}% over the last two weeks, from ${b} a week to ${c}. ${ten} as a member.`
     ]);
   }
   if (a.risk === 'amber' && a.daysSince >= 7){
     return vary(a, [
       `A ${b}-a-week fixture at ${a.archLabel}, but nothing for <b>${a.daysSince} days</b>. First week they have missed in a while.`,
       `<b>${a.daysSince} days</b> quiet. Not alarming yet, but ${a.archLabel} is usually a ${b}-a-week habit for them.`,
-      `Missed a full week at ${a.archLabel} after ${ten} of ${b} visits a week. Worth a nudge before it becomes two.`
+      `A full week missed at ${a.archLabel}, after ${ten} of ${b} visits a week. Worth a nudge before it becomes two.`
     ]);
   }
   if (a.risk === 'amber'){
     return vary(a, [
-      `Slipping from <b>${b} to ${c} a week</b>. Not gone, but the trend is the wrong way.`,
-      `Down about ${pct}% on their own normal over the last fortnight, ${b} a week to ${c}.`,
+      `Down from <b>${b} to ${c} visits a week</b>. Not gone, but heading the wrong way.`,
+      `Down about ${pct}% on their usual over the last two weeks, from ${b} a week to ${c}.`,
       `Quietly training less: <b>${b} a week</b> was the pattern, <b>${c}</b> is the last two weeks.`
     ]);
   }
@@ -1811,7 +1811,7 @@ function callCard(a, rank, why, msg, klass){
     </div>
     <div class="side">
       ${sparkline(a.wk.slice(0, 12).reverse(), { w: 116, h: 34, color: viewRiskColor(a.risk) })}
-      <span class="meta" style="font-size:10px">12-week visits \u00b7 last seen ${esc(lastSeenText(a))}</span>
+      <span class="meta" style="font-size:10px">Last 12 weeks \u00b7 last in ${esc(lastSeenText(a))}</span>
       <div class="acts">
         <button class="btn btn-sm act-copy" data-msg="${esc(msg)}">Copy text</button>
         <button class="btn btn-sm act-done">${done ? 'Undo' : 'Mark contacted'}</button>
@@ -1855,26 +1855,34 @@ function renderAction(){
 
   /* The headline says the one thing worth acting on. The facts row carries the
      context. Neither repeats what the KPI tiles already show underneath. */
-  const quiet = red === 1 ? '1 member has gone quiet' : `${red} members have gone quiet`;
-  const slipping = amber
-    ? `, and ${amber} more ${amber === 1 ? 'is' : 'are'} slipping`
-    : '';
-  const barely = lowUse
-    ? `${lowUse} ${lowUse === 1 ? 'is' : 'are'} paying for a membership they barely use. `
-    : '';
+  // Only mention categories that actually have someone in them, or the headline
+  // reads "0 members have gone quiet".
+  const parts = [];
+  if (red)    parts.push(`<span class="at-risk">${red === 1 ? '1 member has' : red + ' members have'} gone quiet</span>`);
+  if (amber)  parts.push(`${amber === 1 ? '1 member is' : amber + ' members are'} training less than usual`);
+  if (lowUse) parts.push(`${lowUse === 1 ? '1 member is' : lowUse + ' members are'} barely using their membership`);
+  const listSentence = parts.length === 1 ? parts[0]
+    : parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
 
   document.getElementById('nar-headline').innerHTML = active.length
-    ? `<span class="at-risk">${esc(quiet)}</span>${esc(slipping)}. ` +
-      `That is <b>${fmtMoney(atRiskRevenue)} a month</b> of membership worth a phone call. ` +
-      esc(barely)
-    : `Nobody is slipping against their own normal right now. Worth enjoying.`;
+    ? `${listSentence}. ${active.length === 1
+        ? `That membership is <b>${fmtMoney(atRiskRevenue)} a month</b>, so it is worth a check-in.`
+        : `Together those memberships bring in <b>${fmtMoney(atRiskRevenue)} a month</b>, so they are worth a check-in.`}`
+    : `Everyone is training at about their usual rate right now.`;
+
+  const netSentence = G.netChange === 0
+    ? `No change over ${esc(P.label)}: ${G.joined} joined and ${G.cancelled} cancelled`
+    : `${G.netChange > 0 ? 'Up' : 'Down'} <b>${Math.abs(G.netChange)}</b> over ${esc(P.label)}: ${G.joined} joined and ${G.cancelled} cancelled`;
+  const visitSentence = G.visitsPrev
+    ? `<b>${fmtInt(G.visits)}</b> visits, ${Math.abs(Math.round(vDelta))}% ${vDelta >= 0 ? 'more' : 'fewer'} than the ${P.days} days before`
+    : `<b>${fmtInt(G.visits)}</b> visits, with nothing in the period before to compare`;
 
   const facts = [
-    `<b>${fmtInt(G.active.length)}</b> active members`,
-    `${G.netChange >= 0 ? 'Up' : 'Down'} <b>${Math.abs(G.netChange)}</b> ${esc(P.label)} on ${G.joined} join${G.joined === 1 ? '' : 's'} and ${G.cancelled} cancellation${G.cancelled === 1 ? '' : 's'}`,
-    `<b>${fmtInt(G.visits)}</b> door scans, ${vDelta >= 0 ? 'up' : 'down'} ${Math.abs(Math.round(vDelta))}%`
+    `<b>${fmtInt(G.active.length)}</b> active ${G.active.length === 1 ? 'member' : 'members'}`,
+    netSentence,
+    visitSentence
   ];
-  if (!U.empty) facts.push(`Busiest ${esc(peakDayName)} at ${esc(fmtTime(U.peakCell.h, 0))}, quietest ${esc(fmtTime(U.deadH, 0))}`);
+  if (!U.empty) facts.push(`Busiest hour: ${esc(peakDayName)} at ${esc(fmtTime(U.peakCell.h, 0))}. Quietest: ${esc(fmtTime(U.deadH, 0))}`);
   document.getElementById('nar-facts').innerHTML = facts.map(f => `<li>${f}</li>`).join('');
 
   const mPrev = G.months[G.months.length - 2] || G.months[0];
@@ -1883,16 +1891,16 @@ function renderAction(){
           delta: G.netChange, deltaText: (G.netChange >= 0 ? '+' : '') + G.netChange,
           spark: sparkline(G.months.map(m => m.active), { w: 168, h: 30, color:'var(--s1)' }),
           foot: `${G.joined} joined \u00b7 ${G.cancelled} cancelled ${esc(P.label)}` }) +
-    kpi({ label:'Door scans \u00b7 ' + P.label, value: fmtInt(G.visits),
+    kpi({ label:'Visits \u00b7 ' + P.label, value: fmtInt(G.visits),
           delta: Math.round(vDelta), deltaText: Math.abs(Math.round(vDelta)) + '%',
           spark: sparkline(WEEKLY, { w: 168, h: 30, color:'var(--s1)' }),
-          foot: `${fmt1(G.visits / Math.max(1, G.active.length))} per member \u00b7 13-week trend` }) +
-    kpi({ label:'Need a call', value: fmtInt(active.length), unit:'members',
-          foot: `<span style="color:var(--critical)">${fmtMoney(atRiskRevenue)}/mo</span> of revenue \u00b7 ${Math.round(active.length / Math.max(1, G.active.length) * 100)}% of the roster` }) +
-    kpi({ label:'Monthly recurring revenue', value: fmtMoney(G.mrr),
+          foot: `${fmt1(G.visits / Math.max(1, G.active.length))} visits per active member \u00b7 weekly visits over 13 weeks` }) +
+    kpi({ label:'Need a check-in', value: fmtInt(active.length), unit: active.length === 1 ? 'member' : 'members',
+          foot: `<span style="color:var(--critical)">${fmtMoney(atRiskRevenue)} a month</span> in memberships \u00b7 ${Math.round(active.length / Math.max(1, G.active.length) * 100)}% of active members` }) +
+    kpi({ label:'Monthly membership revenue', value: fmtMoney(G.mrr),
           delta: G.mrr - mPrev.mrr, deltaText: fmtMoney(Math.abs(G.mrr - mPrev.mrr)),
           spark: sparkline(G.months.map(m => m.mrr), { w: 168, h: 30, color:'var(--s1)' }),
-          foot: `${fmtMoney(G.arm)} average per member` });
+          foot: `${fmtMoney(G.arm)} per active member each month` });
 
   // ---- call list
   const list = active.slice().sort((a, b) => b.score - a.score);
@@ -1901,9 +1909,9 @@ function renderAction(){
     ? shown.map((a, i) => callCard(a, i + 1, reasonFor(a), messageFor(a), 'r-' + (a.risk === 'low' ? 'amber' : a.risk))).join('')
     : G.flagged.length
       ? `<div class="card empty"><strong>Everyone is snoozed</strong>Use \u201cshow them\u201d below whenever you're ready to bring everyone back.</div>`
-      : `<div class="card empty"><strong>Nobody's slipping</strong>Every member is training at or above their normal rate. Enjoy it.</div>`;
+      : `<div class="card empty"><strong>Nobody is slipping</strong>Every member is training at or above their usual rate.</div>`;
   document.getElementById('calls-sub').textContent =
-    `${list.length} members, ranked by how much you'd lose and how fast you're losing them.`;
+    `${list.length} ${list.length === 1 ? 'member' : 'members'}, ranked by how much you would lose and how fast you are losing them.`;
   document.getElementById('tab-count').textContent = list.length;
   const more = document.getElementById('calls-more');
   more.hidden = list.length <= 8;
@@ -1991,7 +1999,7 @@ function renderMembers(){
   document.getElementById('m-body').innerHTML = rows.map(a => {
     const chg = a.baseline > 0 ? (a.current - a.baseline) / a.baseline * 100 : 0;
     const chgTxt = a.baseline > 0 ? (chg >= 0 ? '+' : '') + Math.round(chg) + '%' : '\u2014';
-    const chgTitle = a.baseline <= 0 ? 'No established normal yet'
+    const chgTitle = a.baseline <= 0 ? 'Not enough history to set a usual yet'
       : a.current === a.baseline ? `${fmt1(a.baseline)} a week, unchanged`
       : `${fmt1(a.baseline)} a week ${a.current < a.baseline ? 'down' : 'up'} to ${fmt1(a.current)}`;
     return `<tr data-id="${a.id}" tabindex="0" role="button" aria-label="Open ${esc(a.name)}">
@@ -2009,7 +2017,7 @@ function renderMembers(){
 
   cards.innerHTML = rows.map(a => `<article class="mcard" data-id="${a.id}" tabindex="0" role="button" aria-label="Open ${esc(a.name)}">
     <div class="top">${initialsAvatar(a)} <span class="nm">${esc(a.name)}</span> ${riskPill(a.risk)}</div>
-    <div class="stats"><span>normal <b>${esc(fmt1(a.baseline))}</b>/wk</span><span>now <b>${esc(fmt1(a.current))}</b>/wk</span><span>last seen ${esc(lastSeenText(a))}</span></div>
+    <div class="stats"><span>usual <b>${esc(fmt1(a.baseline))}</b>/wk</span><span>now <b>${esc(fmt1(a.current))}</b>/wk</span><span>last seen ${esc(lastSeenText(a))}</span></div>
   </article>`).join('') || `<div class="empty"><strong>No matches</strong>Try a different search or filter.</div>`;
   cards.onclick = e => {
     const card = e.target.closest('.mcard');
@@ -2029,21 +2037,21 @@ function heatColor(v, max){
 function renderUtil(){
   const P = PERIODS[STATE.period];
   document.getElementById('util-sub').textContent = U.daysPresent < 7
-    ? `${fmtInt(U.total)} door scans over ${P.label}. Only ${U.daysPresent} day${U.daysPresent === 1 ? '' : 's'} of the week falls in this window, so switch to Month or Quarter to read the pattern properly.`
-    : `${fmtInt(U.total)} door scans over ${P.label}, averaged across each occurrence of that weekday.`;
+    ? `${fmtInt(U.total)} visits over ${P.label}. Only ${U.daysPresent} day${U.daysPresent === 1 ? '' : 's'} of the week falls in this window. Switch to Month or Quarter to see the real pattern.`
+    : `${fmtInt(U.total)} visits over ${P.label}, averaged across each occurrence of that weekday.`;
 
   const peakOccPct = Math.round(U.maxOcc / CAPACITY * 100);
   const DAYS3 = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   document.getElementById('util-kpis').innerHTML = U.empty
-    ? kpi({ label:'Door scans', value:'0', foot:'Nothing came through the door in this window. Try a longer period.' })
+    ? kpi({ label:'Visits', value:'0', foot:'Nobody came through the door in this window. Try a longer period.' })
     : kpi({ label:'Busiest slot', value: fmtTime(U.peakCell.h, 0),
-            foot:`${DAYS3[U.peakCell.d]} is your heaviest, about ${Math.round(U.peakCell.v)} people in that hour` }) +
+            foot:`${DAYS3[U.peakCell.d]} is the heaviest day, with about ${Math.round(U.peakCell.v)} people in that hour` }) +
       kpi({ label:'Fullest moment', value: peakOccPct, unit:'%',
             foot:`${Math.round(U.maxOcc)} people on the floor at once around ${esc(U.maxOccTime)}, against an assumed ${CAPACITY}-person capacity. A typical day peaks at ${Math.round(U.typicalPeak)}.` }) +
       kpi({ label:'Trained 4-8pm weekdays', value: Math.round(U.inPeakWindow * 100), unit:'%',
             foot:`${Math.round(U.offPeak * 100)}% train 9am to 4pm, when the floor is nearly empty` }) +
       kpi({ label:'Quietest hour', value: fmtTime(U.deadH, 0),
-            foot:`${fmt1(U.dead)} scans an hour. The cheapest capacity you own.` });
+            foot:`${fmt1(U.dead)} visits an hour. The cheapest space you already pay for.` });
 
   const heatCard = document.getElementById('heat').closest('.card');
   let heatSummary = document.getElementById('heat-summary');
@@ -2056,7 +2064,7 @@ function renderUtil(){
   const DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const fullTime = h => fmtTime(h, 0).replace(/([ap])$/, '$1m');
   heatSummary.textContent = U.empty
-    ? 'No door scans in this window yet, so there is no busiest or quietest time to compare.'
+    ? 'No visits in this window yet, so there is no busiest or quietest time to show.'
     : `Busiest: ${DAYNAMES[U.peakCell.d]} around ${fullTime(U.peakCell.h)}, about ${Math.round(U.peakCell.v)} people through the door. Quietest: ${fullTime(U.deadH)}.`;
 
   // heatmap
@@ -2068,7 +2076,7 @@ function renderUtil(){
     for (const hr of HOURS){
       const v = U.avg[d][hr];
       const cls = CLASS_KEYS.has(`${d}-${hr}`) ? ' cls' : '';
-      const cellLabel = `${DOWS[i]} ${fmtTime(hr, 0)}, ${fmt1(v)} scans an hour${cls ? ', class runs then' : ''}`;
+      const cellLabel = `${DOWS[i]} ${fmtTime(hr, 0)}, ${fmt1(v)} visits an hour${cls ? ', a class runs then' : ''}`;
       h += `<div class="cell${cls}" style="background:${heatColor(v, U.maxCell)}" data-d="${d}" data-h="${hr}" data-i="${i}" role="img" aria-label="${esc(cellLabel)}"></div>`;
     }
   });
@@ -2081,13 +2089,13 @@ function renderUtil(){
     const d = +c.dataset.d, hr = +c.dataset.h, v = U.avg[d][hr];
     const cl = CLASSES.find(x => x.days.includes(d) && x.h === hr);
     showTip(`<b>${DOWS[+c.dataset.i]} ${fmtTime(hr, 0)}\u2013${fmtTime((hr + 1) % 24, 0)}</b>
-      <div>${fmt1(v)} scans in an average hour</div>
+      <div>${fmt1(v)} visits in an average hour</div>
       ${cl ? `<div class="tk">${esc(cl.name)} class at ${esc(fmtTime(cl.h, cl.m))}</div>` : ''}`, e);
   };
   heat.onmouseleave = hideTip;
 
   // day curve
-  document.getElementById('curve-sub').textContent = `Average scans per hour across the ${U.daysPresent} day${U.daysPresent === 1 ? '' : 's'} of the week in this window.`;
+  document.getElementById('curve-sub').textContent = `Average visits an hour, across the ${U.daysPresent} day${U.daysPresent === 1 ? '' : 's'} of the week in this window.`;
   barChart(document.getElementById('curve'), {
     h: 190, maxBar: 26,
     data: HOURS.map(x => ({
@@ -2097,8 +2105,8 @@ function renderUtil(){
       color: 'var(--s1)'
     })),
     yFmt: v => fmt1(v),
-    tip: x => fmt1(x.value) + ' scans an hour on average',
-    aria:'Average door scans by hour of day'
+    tip: x => fmt1(x.value) + ' visits an hour on average',
+    aria:'Average visits by hour of day'
   });
 
   // class table
@@ -2202,7 +2210,7 @@ function renderGrowth(){
 
   const ORD = ['var(--ord-1)', 'var(--ord-2)', 'var(--ord-3)', 'var(--ord-4)'];
   document.getElementById('first30').innerHTML =
-    `<p class="note" style="margin-bottom:16px">Every member who joined at least six months ago, grouped by how many times they scanned in their first 30 days \u2014 and whether they were still paying at month six. This is the single cheapest lever you have.</p>` +
+    `<p class="note" style="margin-bottom:16px">Every member who joined at least six months ago, grouped by how many times they came in during their first 30 days \u2014 and whether they were still paying at month six. This is the single cheapest lever you have.</p>` +
     L.buckets.map((b, i) => `<div style="display:flex; align-items:center; gap:14px; margin-bottom:11px">
       <span style="width:96px; font-size:12px; color:var(--text-2)">${esc(b.label)}</span>
       <span style="flex:1; height:22px; background:var(--sunken); border-radius:5px; overflow:hidden; display:block">
@@ -2210,7 +2218,7 @@ function renderGrowth(){
       <span class="num" style="font-size:20px; width:56px; text-align:right; color:${b.n ? 'var(--text)' : 'var(--muted)'}">${b.n ? Math.round(b.pct) + '%' : '&mdash;'}</span>
       <span class="cap" style="width:88px; font-size:10.5px">${b.n ? b.n + ' members' : 'nobody yet'}</span>
     </div>`).join('') +
-    `<p class="note" style="margin-top:14px">The gap between the top and bottom rows is your onboarding problem, stated in one number. Getting a new member to <b>8 visits in month one</b> is worth more than any discount you could offer them.</p>` +
+    `<p class="note" style="margin-top:14px">The gap between the top and bottom rows is your onboarding problem, stated in one number. Getting a new member to <b>8 visits in their first month</b> is worth more than any discount you could offer.</p>` +
     `<div style="margin-top:22px; border-top:1px solid var(--line); padding-top:16px">
       <div class="eyebrow" style="margin-bottom:10px">Membership rates used for revenue \u2014 edit to match your real pricing</div>
       <div id="rate-editor" style="display:flex; gap:10px; flex-wrap:wrap"></div>
@@ -2250,9 +2258,9 @@ function openMember(id){
         <dt>Joined</dt><dd>${new Date(a.join).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</dd>
         <dt>Time as a member</dt><dd>${esc(tenureText(a.tenureMo))}</dd>
         <dt>Total visits</dt><dd>${fmtInt(a.scans.length)}</dd>
-        <dt>Their normal week</dt><dd>${fmt1(a.baseline)} visits</dd>
+        <dt>Usual week</dt><dd>${fmt1(a.baseline)} visits</dd>
         <dt>Last two weeks</dt><dd style="color:${a.current < a.baseline * .7 ? 'var(--critical)' : 'var(--text)'}">${fmt1(a.current)} visits</dd>
-        <dt>Last scan</dt><dd>${a.last ? new Date(a.last).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' \u00b7 ' + esc(lastSeenText(a)) : 'never'}</dd>
+        <dt>Last visit</dt><dd>${a.last ? new Date(a.last).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' \u00b7 ' + esc(lastSeenText(a)) : 'never'}</dd>
         <dt>Longest gap before now</dt><dd>${Math.round(a.priorGap)} days</dd>
         <dt>Usual time</dt><dd>${topHours.length ? topHours.map(x => fmtTime(x.h, 0)).join(', ') : '\u2014'}</dd>
         <dt>Paid to date</dt><dd>${fmtMoney(a.paid)}</dd>
@@ -2344,6 +2352,8 @@ function parseCSV(text){
 
 /* "2026-08-28" is parsed as UTC by the Date constructor, which lands on the
    27th anywhere west of Greenwich. Parse plain dates as local instead. */
+const plural = (n, one, many) => fmtInt(n) + ' ' + (n === 1 ? one : many);
+
 function parseWhen(v){
   const t = String(v == null ? '' : v).trim();
   if (!t) return null;
@@ -2405,11 +2415,11 @@ function buildMapping(){
     row('Member ID', 'used to match door scans', selHTML('c-id', M.headers, guessCol(M.headers, 'id'), true)) +
     row('Join date', 'required', selHTML('c-join', M.headers, guessCol(M.headers, 'join'), false)) +
     row('Membership', '', selHTML('c-tier', M.headers, guessCol(M.headers, 'tier'), true)) +
-    row('Monthly rate', 'blank falls back to the rates on the Growth screen', selHTML('c-rate', M.headers, guessCol(M.headers, 'rate'), true)) +
+    row('Monthly rate', 'if a rate is missing, the dashboard uses the rate set on the Business screen', selHTML('c-rate', M.headers, guessCol(M.headers, 'rate'), true)) +
     row('Cancellation date', 'optional, but churn and lifetime value need it', selHTML('c-end', M.headers, guessCol(M.headers, 'end'), true)) +
     `<div class="eyebrow" style="color:var(--text-2);margin-top:8px">From your door-scan file</div>` +
-    row('Who scanned', 'required \u00b7 member ID or name', selHTML('c-ref', S.headers, guessCol(S.headers, 'ref'), false)) +
-    row('When', 'required \u00b7 date and time of the scan', selHTML('c-when', S.headers, guessCol(S.headers, 'when'), false));
+    row('Who came in', 'required \u00b7 member ID or name', selHTML('c-ref', S.headers, guessCol(S.headers, 'ref'), false)) +
+    row('When', 'required \u00b7 date and time of the entry', selHTML('c-when', S.headers, guessCol(S.headers, 'when'), false));
   document.getElementById('mapping').hidden = false;
 }
 
@@ -2419,10 +2429,10 @@ function readFile(f, which, outId){
   const r = new FileReader();
   r.onload = () => {
     const p = parseCSV(r.result);
-    if (p.error){ out.innerHTML = `<span style="color:var(--brand)">Couldn't read that file: ${esc(p.error)}.</span>`; return; }
-    if (!p.headers.length){ out.innerHTML = `<span style="color:var(--brand)">Couldn't read that file. Is it a CSV?</span>`; return; }
+    if (p.error){ out.innerHTML = `<span style="color:var(--brand)">This CSV has an unclosed quotation mark, so it could not be read. Fix the file and try again.</span>`; return; }
+    if (!p.headers.length){ out.innerHTML = `<span style="color:var(--brand)">That file has no readable CSV headers. Export it as a CSV and try again.</span>`; return; }
     FILES[which] = p;
-    out.innerHTML = `<b>${esc(f.name)}</b> \u2014 ${fmtInt(p.rows.length)} rows, ${p.headers.length} columns.`;
+    out.innerHTML = `<b>${esc(f.name)}</b> \u2014 ${plural(p.rows.length, 'row', 'rows')}, ${plural(p.headers.length, 'column', 'columns')}.`;
     buildMapping();
   };
   r.onerror = () => { out.innerHTML = `<span style="color:var(--brand)">Couldn't open that file.</span>`; };
@@ -2437,13 +2447,13 @@ function importData(){
   const cs = { ref:gv('c-ref'), when:gv('c-when') };
   const warn = document.getElementById('import-warn');
 
-  const need = [[ci.join,'Join date'], [cs.ref,'Who scanned'], [cs.when,'When']].filter(x => x[0] < 0);
+  const need = [[ci.join,'Join date'], [cs.ref,'Who came in'], [cs.when,'When']].filter(x => x[0] < 0);
   if (need.length){
-    warn.innerHTML = `<span style="color:var(--brand)">Pick a column for ${esc(need.map(x => x[1]).join(' and '))} before importing.</span>`;
+    warn.innerHTML = `<span style="color:var(--brand)">Choose columns for ${esc(need.length === 1 ? need[0][1].toLowerCase() : need.slice(0, -1).map(x => x[1].toLowerCase()).join(', ') + ' and ' + need[need.length - 1][1].toLowerCase())} before loading.</span>`;
     return;
   }
   if ((ci.name < 0) && (ci.first < 0)){
-    warn.innerHTML = `<span style="color:var(--brand)">Pick either a full-name column or a first-name column.</span>`;
+    warn.innerHTML = `<span style="color:var(--brand)">Choose either a full-name column or a first-name column.</span>`;
     return;
   }
 
@@ -2502,7 +2512,7 @@ function importData(){
   for (const m of members){ m.scans.sort((a, b) => a - b); if (m.scans.length && m.join > m.scans[0]) m.join = startOfDay(m.scans[0]); }
 
   if (!members.length || !matched){
-    warn.innerHTML = `<span style="color:var(--brand)">Nothing imported \u2014 ${!members.length ? 'no member rows had a readable name and join date' : 'no scan rows matched a member'}. Check the column choices above.</span>`;
+    warn.innerHTML = `<span style="color:var(--brand)">${!members.length ? 'No members were loaded, because none had both a readable name and a join date' : 'No visits were loaded, because the IDs or names in the two files did not match'}. Check the column choices above.</span>`;
     return;
   }
   // Take the median rate per tier rather than the last row seen, so one
@@ -2524,17 +2534,17 @@ function importData(){
   // log only covers recent months, so cohorts run from the earliest join.
   const firstJoin = members.reduce((a, m) => Math.min(a, m.join), Infinity);
   DATA = { members, scanStart: earliest, simStart: earliest, coverage: firstJoin, source:'imported' };
-  warn.innerHTML = `Loaded <b>${fmtInt(members.length)} members</b> and <b>${fmtInt(matched)} scans</b>.` +
-    (unmatched ? ` ${fmtInt(unmatched)} scans didn't match a member.` : '') +
-    (badDates ? ` ${fmtInt(badDates)} member rows were skipped for an unreadable join date.` : '') +
-    (badTs ? ` ${fmtInt(badTs)} scans had an unreadable timestamp.` : '') +
-    (noPrice ? ` No rate column was mapped, so every membership is priced at ${fmtMoney(fallback)} until you set the real rates on the Growth screen.` : '') +
-    (dupNames.size ? ` ${fmtInt(dupNames.size)} member${dupNames.size === 1 ? ' shares a name or ID with another record' : 's share a name or ID with another record'}${ci.id >= 0 ? ', so their scans were matched on ID where possible' : '; their scans went to whichever record came first'}. Worth checking those.` : '') +
-    (noChurn ? ` Nobody in this file has a cancellation date, so churn, length of engagement and lifetime value cannot be calculated. Re-export including cancelled clients and map the cancellation date column.` : '');
+  warn.innerHTML = `Loaded <b>${plural(members.length, 'member', 'members')}</b> and <b>${plural(matched, 'visit', 'visits')}</b>.` +
+    (unmatched ? ` ${plural(unmatched, 'entry', 'entries')} did not match a member.` : '') +
+    (badDates ? ` ${plural(badDates, 'member', 'members')} skipped for an unreadable join date.` : '') +
+    (badTs ? ` ${plural(badTs, 'entry', 'entries')} had an unreadable date and time.` : '') +
+    (noPrice ? ` No monthly-rate column was chosen, so every membership is priced at ${fmtMoney(fallback)} until you set the real rates on the Business screen.` : '') +
+    (dupNames.size ? ` ${fmtInt(dupNames.size)} member${dupNames.size === 1 ? ' shares a name or ID with another record' : 's share a name or ID with another record'}${ci.id >= 0 ? ', so their scans were matched on ID where possible' : '; their visits went to whichever record came first'}. Add an ID column and load the files again to be sure they are right.` : '') +
+    (noChurn ? ` Nobody in this file has a cancellation date, so churn, length of engagement and lifetime value cannot be worked out. Re-export including cancelled members and choose the cancellation-date column.` : '');
   STATE.contacted.clear();
   const readAt = new Date();
   const readTime = String(readAt.getHours()).padStart(2, '0') + ':' + String(readAt.getMinutes()).padStart(2, '0');
-  setFreshness(`Your data - ${fmtInt(members.length)} members, ${fmtInt(matched)} scans, read ${readTime}`);
+  setFreshness(`EVSC data \u00b7 ${plural(members.length, 'member', 'members')} \u00b7 ${plural(matched, 'visit', 'visits')} \u00b7 loaded ${readTime}`);
   refresh();
   document.getElementById('importer').removeAttribute('open');
 }
@@ -2628,8 +2638,8 @@ document.addEventListener('click', e => {
   if (e.target.id === 'reset-demo'){
     RATES = Object.assign({}, TIERS);
     DATA = buildDemoData(); STATE.contacted.clear(); if (STATE.snoozed) STATE.snoozed.clear();
-    document.getElementById('import-warn').textContent = 'Back on the demo data.';
-    setFreshness('Demo data - generated just now');
+    document.getElementById('import-warn').textContent = 'Demo data restored.';
+    setFreshness('Demo data \u00b7 generated just now');
     refresh(); document.getElementById('importer').removeAttribute('open'); return;
   }
 });
@@ -2675,7 +2685,7 @@ for (const [zone, input, which, out] of [['dz-members','f-members','members','dz
 
 document.getElementById('logo').src = LOGO_SRC;
 paintToggle();
-setFreshness('Demo data - generated just now');
+setFreshness('Demo data \u00b7 generated just now');
 
 /* The header wraps at narrow widths, so the sticky offset for the tab bar has
    to be measured rather than assumed. */
