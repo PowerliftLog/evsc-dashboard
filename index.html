@@ -822,8 +822,23 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
       <div id="dz-scans-out" class="note" style="margin-top:8px"></div>
     </div>
 
+    <div class="sec">
+      <div class="eyebrow" style="margin-bottom:8px">3 &middot; Personal training <span style="color:var(--muted); font-weight:400; text-transform:none; letter-spacing:0">&mdash; optional</span></div>
+      <div class="dropzone" id="dz-sessions">
+        Drop your PT appointments export here, or <label style="color:var(--brand); cursor:pointer; text-decoration:underline">browse<input type="file" id="f-sessions" accept=".csv,text/csv" class="visually-hidden"></label>
+        <div class="note" style="margin-top:8px">Needs who the session was for, when it was, and whether it happened. One row per session.</div>
+      </div>
+      <div id="dz-sessions-out" class="note" style="margin-top:8px"></div>
+      <div class="dropzone" id="dz-packages" style="margin-top:12px">
+        Drop your PT packages or contracts export here, or <label style="color:var(--brand); cursor:pointer; text-decoration:underline">browse<input type="file" id="f-packages" accept=".csv,text/csv" class="visually-hidden"></label>
+        <div class="note" style="margin-top:8px">Needs who bought it, when, how many sessions, and what they paid. Without this, sessions remaining and deferred revenue cannot be worked out.</div>
+      </div>
+      <div id="dz-packages-out" class="note" style="margin-top:8px"></div>
+      <p class="note" style="margin-top:10px">Leave both empty if you only want the membership and visit screens. The Personal training tab will say what it needs.</p>
+    </div>
+
     <div class="sec" id="mapping" hidden>
-      <div class="eyebrow" style="margin-bottom:10px">3 &#183; Match up the columns</div>
+      <div class="eyebrow" style="margin-bottom:10px">4 &middot; Match up the columns</div>
       <div id="mapping-body" class="grid" style="gap:12px"></div>
       <div style="display:flex; gap:9px; margin-top:18px; flex-wrap:wrap">
         <button class="btn btn-primary" id="do-import">Load these files</button>
@@ -833,7 +848,7 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
     </div>
 
     <div class="sec">
-      <p class="note">Not sure what to export? In Mindbody: <b>Reports &#8594; Clients &#8594; Client List</b> (export CSV) and <b>Reports &#8594; Attendance &#8594; Sign-In Sheet</b> or your door system's raw entry log for the last 6+ months. Six months of scans is the minimum for baselines to mean anything; twelve is better.</p>
+      <p class="note">Not sure what to export? In Mindbody: <b>Reports &#8594; Clients &#8594; Client List</b> (export CSV) and <b>Reports &#8594; Attendance &#8594; Sign-In Sheet</b> or your door system's raw entry log for the last 6+ months. Six months of visits is the minimum for baselines to mean anything; twelve is better. For personal training: <b>Reports &#8594; Appointments</b> and <b>Reports &#8594; Sales &#8594; Contracts</b> or your package/series report.</p>
     </div>
   </div>
 </div>
@@ -3172,7 +3187,24 @@ function parseWhen(v){
   return ok(new Date(t));
 }
 
-const FILES = { members: null, scans: null };
+function normalizePTStatus(v){
+  const key = String(v == null ? '' : v).trim().toLowerCase()
+    .replace(/[\u2010-\u2015-]+/g, ' ').replace(/\s+/g, ' ');
+  switch (key){
+    case 'signed in': case 'completed': case 'complete': case 'attended':
+    case 'arrived': case 'checked in': case 'show': return 'completed';
+    case 'cancelled': case 'canceled': case 'late cancel': case 'early cancel':
+    case 'cancelled by client': case 'cancelled by staff':
+    case 'canceled by client': case 'canceled by staff':
+    case 'cancelled by client/staff': case 'canceled by client/staff': return 'cancelled';
+    case 'no show': case 'noshow': case 'absent': case 'missed': return 'noshow';
+    case 'scheduled': case 'booked': case 'upcoming': case 'confirmed':
+    case 'pending': return 'scheduled';
+    default: return 'unclassified';
+  }
+}
+
+const FILES = { members: null, scans: null, sessions: null, packages: null };
 const GUESS = {
   name:  [/^(client )?name$/i, /full ?name/i, /^member$/i],
   first: [/first ?name/i], last: [/last ?name/i],
@@ -3182,7 +3214,19 @@ const GUESS = {
   rate:  [/rate/i, /price/i, /amount/i, /monthly/i, /^value$/i],
   end:   [/cancel/i, /end ?date/i, /termination/i, /expir/i, /inactive ?date/i, /last ?day/i],
   ref:   [/client ?id/i, /member ?id/i, /badge/i, /^id$/i, /barcode/i, /key ?fob/i, /fob/i, /card ?(no|num|#)/i, /name/i, /user/i],
-  when:  [/date ?\/? ?time/i, /timestamp/i, /scan/i, /^time$/i, /^date$/i, /entry/i, /check.?in/i]
+  when:  [/date ?\/? ?time/i, /timestamp/i, /scan/i, /^time$/i, /^date$/i, /entry/i, /check.?in/i],
+  sessionRef:     [/client ?id/i, /member ?id/i, /^client$/i, /client ?name/i, /member ?name/i, /full ?name/i, /^name$/i],
+  sessionWhen:    [/appointment.*(date|time|start)/i, /start.*(date|time)/i, /(date|time).*start/i, /date ?\/? ?time/i, /^start$/i, /^date$/i, /^time$/i],
+  sessionStatus:  [/status/i, /outcome/i],
+  sessionCoach:   [/staff/i, /coach/i, /trainer/i, /instructor/i, /provider/i],
+  sessionPackage: [/package/i, /contract/i, /series/i],
+  sessionPrice:   [/price/i, /amount/i, /total/i, /paid/i],
+  packageRef:      [/client ?id/i, /member ?id/i, /^client$/i, /client ?name/i, /member ?name/i, /full ?name/i, /^name$/i],
+  packagePurchased:[/purchase.*date/i, /sale.*date/i, /date.*(purchase|sale)/i, /sold.*date/i, /^purchased?$/i, /^sale$/i, /^sold$/i],
+  packageSessions: [/sessions?/i, /visits?/i, /quantity/i, /count/i],
+  packagePrice:    [/price/i, /amount/i, /total/i, /paid/i, /^value$/i],
+  packageExpires:  [/expir/i, /valid.*until/i],
+  packageLink:     [/(package|contract|series).*(id|ref|number|#)/i, /^(package|contract|series)$/i, /description/i]
 };
 function guessCol(headers, key){
   for (const re of GUESS[key] || []){
@@ -3199,11 +3243,11 @@ const selHTML = (id, headers, sel, optional) =>
 
 function buildMapping(){
   if (!FILES.members || !FILES.scans) return;
-  const M = FILES.members, S = FILES.scans;
+  const M = FILES.members, S = FILES.scans, A = FILES.sessions, P = FILES.packages;
   const row = (label, hint, ctl) =>
     `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <span style="min-width:150px;font-size:12px;color:var(--text-2)">${esc(label)}<br><span class="cap" style="color:var(--muted);font-size:10.5px">${esc(hint)}</span></span>${ctl}</div>`;
-  document.getElementById('mapping-body').innerHTML =
+  let html =
     `<div class="eyebrow" style="color:var(--text-2)">From your member file</div>` +
     row('Member name', 'or pick first name below', selHTML('c-name', M.headers, guessCol(M.headers, 'name'), true)) +
     row('First / last name', 'if the name is split in two', selHTML('c-first', M.headers, guessCol(M.headers, 'first'), true) + selHTML('c-last', M.headers, guessCol(M.headers, 'last'), true)) +
@@ -3215,16 +3259,39 @@ function buildMapping(){
     `<div class="eyebrow" style="color:var(--text-2);margin-top:8px">From your door-scan file</div>` +
     row('Who came in', 'required \u00b7 member ID or name', selHTML('c-ref', S.headers, guessCol(S.headers, 'ref'), false)) +
     row('When', 'required \u00b7 date and time of the entry', selHTML('c-when', S.headers, guessCol(S.headers, 'when'), false));
+  if (A) html +=
+    `<div class="eyebrow" style="color:var(--text-2);margin-top:8px">From your PT appointments file</div>` +
+    row('Who the session was for', 'member ID or name', selHTML('c-session-ref', A.headers, guessCol(A.headers, 'sessionRef'), true)) +
+    row('Session start', 'date and time', selHTML('c-session-when', A.headers, guessCol(A.headers, 'sessionWhen'), true)) +
+    row('Status', 'needed to tell a visit from a booking', selHTML('c-session-status', A.headers, guessCol(A.headers, 'sessionStatus'), true)) +
+    row('Coach / trainer', 'optional', selHTML('c-session-coach', A.headers, guessCol(A.headers, 'sessionCoach'), true)) +
+    row('Package / contract', 'optional link to the package used', selHTML('c-session-package', A.headers, guessCol(A.headers, 'sessionPackage'), true)) +
+    row('Session price', 'optional for pay-as-you-go sessions', selHTML('c-session-price', A.headers, guessCol(A.headers, 'sessionPrice'), true));
+  if (P) html +=
+    `<div class="eyebrow" style="color:var(--text-2);margin-top:8px">From your PT packages file</div>` +
+    row('Who bought it', 'member ID or name', selHTML('c-package-ref', P.headers, guessCol(P.headers, 'packageRef'), true)) +
+    row('Purchase / sale date', 'when the package was bought', selHTML('c-package-purchased', P.headers, guessCol(P.headers, 'packagePurchased'), true)) +
+    row('Sessions / visits', 'how many were bought', selHTML('c-package-sessions', P.headers, guessCol(P.headers, 'packageSessions'), true)) +
+    row('Price / total', 'what the member paid', selHTML('c-package-price', P.headers, guessCol(P.headers, 'packagePrice'), true)) +
+    row('Expiration date', 'optional', selHTML('c-package-expires', P.headers, guessCol(P.headers, 'packageExpires'), true)) +
+    row('Package / contract reference', 'optional shared ID or description', selHTML('c-package-link', P.headers, guessCol(P.headers, 'packageLink'), true));
+  document.getElementById('mapping-body').innerHTML = html;
   document.getElementById('mapping').hidden = false;
 }
 
 function clearImportFiles(){
   FILES.members = null;
   FILES.scans = null;
+  FILES.sessions = null;
+  FILES.packages = null;
   document.getElementById('f-members').value = '';
   document.getElementById('f-scans').value = '';
+  document.getElementById('f-sessions').value = '';
+  document.getElementById('f-packages').value = '';
   document.getElementById('dz-members-out').textContent = '';
   document.getElementById('dz-scans-out').textContent = '';
+  document.getElementById('dz-sessions-out').textContent = '';
+  document.getElementById('dz-packages-out').textContent = '';
   document.getElementById('mapping-body').textContent = '';
   document.getElementById('mapping').hidden = true;
 }
@@ -3247,7 +3314,7 @@ function readFile(f, which, outId){
 }
 
 function importData(){
-  const M = FILES.members, S = FILES.scans;
+  const M = FILES.members, S = FILES.scans, A = FILES.sessions, P = FILES.packages;
   if (!M || !S){
     document.getElementById('import-warn').innerHTML =
       '<span style="color:var(--brand)">Load both files again before importing.</span>';
@@ -3257,6 +3324,10 @@ function importData(){
   const ci = { name:gv('c-name'), first:gv('c-first'), last:gv('c-last'), id:gv('c-id'),
                join:gv('c-join'), tier:gv('c-tier'), rate:gv('c-rate'), end:gv('c-end') };
   const cs = { ref:gv('c-ref'), when:gv('c-when') };
+  const ca = A ? { ref:gv('c-session-ref'), when:gv('c-session-when'), status:gv('c-session-status'),
+                   coach:gv('c-session-coach'), package:gv('c-session-package'), price:gv('c-session-price') } : null;
+  const cp = P ? { ref:gv('c-package-ref'), purchased:gv('c-package-purchased'), sessions:gv('c-package-sessions'),
+                   price:gv('c-package-price'), expires:gv('c-package-expires'), link:gv('c-package-link') } : null;
   const warn = document.getElementById('import-warn');
 
   const need = [[ci.join,'Join date'], [cs.ref,'Who came in'], [cs.when,'When']].filter(x => x[0] < 0);
@@ -3276,6 +3347,16 @@ function importData(){
   }
   if (cs.ref === cs.when){
     warn.innerHTML = '<span style="color:var(--brand)">Choose a different column for each door-scan field before loading.</span>';
+    return;
+  }
+  const repeatedCol = fields => Object.entries(fields).filter(([, col]) => col >= 0)
+    .some(([, col], i, chosen) => chosen.some(([, other], j) => j < i && other === col));
+  if (ca && repeatedCol(ca)){
+    warn.innerHTML = '<span style="color:var(--brand)">Choose a different column for each PT appointment field before loading.</span>';
+    return;
+  }
+  if (cp && repeatedCol(cp)){
+    warn.innerHTML = '<span style="color:var(--brand)">Choose a different column for each PT package field before loading.</span>';
     return;
   }
 
@@ -3329,12 +3410,17 @@ function importData(){
     if (ci.id >= 0 && r[ci.id]) claim(String(r[ci.id]).trim().toLowerCase());
   }
 
+  const matchMember = raw => {
+    const text = String(raw == null ? '' : raw).trim();
+    return byKey.get(text.toLowerCase()) || byKey.get(nameKey(text));
+  };
+
   let matched = 0, unmatched = 0, badTs = 0, preJoin = 0, futureTs = 0;
   const importNow = Date.now();
   for (const r of S.rows){
     const raw = String(r[cs.ref] || '').trim();
     const k = raw.toLowerCase();
-    const m = byKey.get(k) || byKey.get(nameKey(raw));
+    const m = matchMember(raw);
     if (!m){ if (k) unmatched++; continue; }
     const d = parseWhen(r[cs.when]);
     if (!d){ badTs++; continue; }
@@ -3367,12 +3453,145 @@ function importData(){
   const noPrice = ci.rate < 0;
   const noChurn = !members.some(m => m.cancel);
 
+  const readMoney = value => {
+    const raw = String(value == null ? '' : value).trim();
+    if (!raw) return { value:null, bad:false };
+    const plain = raw.replace(/[$\u00a3\u20ac,\s]/g, '');
+    const number = +plain;
+    return /^\d+(\.\d+)?$/.test(plain) && Number.isFinite(number)
+      ? { value:number, bad:false } : { value:null, bad:true };
+  };
+  const ptSessions = [], ptPackages = [];
+  const packagesByMember = new Map(), packageByLink = new Map();
+  let sessionMappingDrop = '', packageMappingDrop = '';
+  let unmatchedSessions = 0, badSessionDates = 0, preJoinSessions = 0, futureSessionStatuses = 0;
+  let unclassifiedStatuses = A && ca.status < 0 ? A.rows.length : 0;
+  let badSessionPrices = 0, unlinkedPackageRefs = 0;
+  let unmatchedPackages = 0, badPackageDates = 0, futurePackageDates = 0;
+  let badPackageCounts = 0, badPackagePrices = 0, badPackageExpires = 0;
+
+  if (P){
+    if (cp.ref < 0) packageMappingDrop = 'purchaser';
+    else if (cp.purchased < 0) packageMappingDrop = 'purchase date';
+    else if (cp.sessions < 0) packageMappingDrop = 'session count';
+    else for (const r of P.rows){
+      const m = matchMember(r[cp.ref]);
+      if (!m){ unmatchedPackages++; continue; }
+      const purchasedDate = parseWhen(r[cp.purchased]);
+      if (!purchasedDate){ badPackageDates++; continue; }
+      const purchased = purchasedDate.getTime();
+      if (purchased > importNow){ futurePackageDates++; continue; }
+      const countRaw = String(r[cp.sessions] == null ? '' : r[cp.sessions]).trim().replace(/[,\s]/g, '');
+      const sessionCount = +countRaw;
+      if (!/^\d+(?:\.0+)?$/.test(countRaw) || !Number.isSafeInteger(sessionCount) || sessionCount <= 0){
+        badPackageCounts++; continue;
+      }
+      const paid = cp.price >= 0 ? readMoney(r[cp.price]) : { value:null, bad:false };
+      if (paid.bad) badPackagePrices++;
+      let expires = null;
+      if (cp.expires >= 0){
+        const expiresRaw = String(r[cp.expires] == null ? '' : r[cp.expires]).trim();
+        const expiresDate = parseWhen(expiresRaw);
+        if (expiresDate) expires = startOfDay(expiresDate);
+        else if (expiresRaw) badPackageExpires++;
+      }
+      const pkg = { id:ptPackages.length + 1, memberId:m.id, purchased,
+                    sessions:sessionCount, price:paid.value, expires };
+      ptPackages.push(pkg);
+      const own = packagesByMember.get(m.id) || [];
+      own.push(pkg); packagesByMember.set(m.id, own);
+      if (cp.link >= 0){
+        const sourceLink = String(r[cp.link] == null ? '' : r[cp.link]).trim().toLowerCase();
+        if (sourceLink){
+          const key = m.id + '\u0000' + sourceLink;
+          if (packageByLink.has(key)) packageByLink.set(key, null);
+          else packageByLink.set(key, pkg);
+        }
+      }
+    }
+  }
+
+  if (A){
+    if (ca.ref < 0) sessionMappingDrop = 'client';
+    else if (ca.when < 0) sessionMappingDrop = 'start date and time';
+    else for (const r of A.rows){
+      const status = ca.status >= 0 ? normalizePTStatus(r[ca.status]) : 'unclassified';
+      if (ca.status >= 0 && status === 'unclassified') unclassifiedStatuses++;
+      const m = matchMember(r[ca.ref]);
+      if (!m){ unmatchedSessions++; continue; }
+      const startDate = parseWhen(r[ca.when]);
+      if (!startDate){ badSessionDates++; continue; }
+      const start = startDate.getTime();
+      if (start < m.join){ preJoinSessions++; continue; }
+      if (start > importNow && status !== 'scheduled'){
+        futureSessionStatuses++; continue;
+      }
+      const charged = ca.price >= 0 ? readMoney(r[ca.price]) : { value:null, bad:false };
+      if (charged.bad) badSessionPrices++;
+      let packageId = null;
+      if (ca.package >= 0){
+        const sourceLink = String(r[ca.package] == null ? '' : r[ca.package]).trim().toLowerCase();
+        if (sourceLink){
+          const key = m.id + '\u0000' + sourceLink;
+          if (packageByLink.has(key)){
+            const linked = packageByLink.get(key);
+            if (linked && linked.purchased <= start) packageId = linked.id;
+            else unlinkedPackageRefs++;
+          } else {
+            // A single eligible purchase is the only safe fallback when one
+            // export names the contract but the sales export omits its ID.
+            const eligible = (packagesByMember.get(m.id) || []).filter(pkg => pkg.purchased <= start);
+            if (eligible.length === 1) packageId = eligible[0].id;
+            else unlinkedPackageRefs++;
+          }
+        }
+      }
+      ptSessions.push({
+        id:ptSessions.length + 1, memberId:m.id,
+        coach:ca.coach >= 0 ? String(r[ca.coach] == null ? '' : r[ca.coach]).trim() : '',
+        start, status, packageId, price:charged.value
+      });
+    }
+  }
+  ptSessions.sort((a, b) => a.start - b.start);
+  for (let i = 0; i < ptSessions.length; i++) ptSessions[i].id = i + 1;
+
   let earliest = Infinity;
   for (const m of members) if (m.scans.length && m.scans[0] < earliest) earliest = m.scans[0];
   // The member file carries the full join/cancel history even when the scan
   // log only covers recent months, so cohorts run from the earliest join.
   const firstJoin = members.reduce((a, m) => Math.min(a, m.join), Infinity);
-  DATA = { members, scanStart: earliest, simStart: earliest, coverage: firstJoin, source:'imported' };
+  DATA = { members, ptSessions, ptPackages, scanStart: earliest, simStart: earliest, coverage: firstJoin, source:'imported' };
+  const ptWarnings = [];
+  if (A || P) ptWarnings.push(`Loaded <b>${plural(ptSessions.length, 'session', 'sessions')}</b> and <b>${plural(ptPackages.length, 'package', 'packages')}</b>.`);
+  if (sessionMappingDrop){
+    ptWarnings.push(`No ${esc(sessionMappingDrop)} column was chosen for the appointments file, so ${plural(A.rows.length, 'row was', 'rows were')} dropped. Choose that PT column and load the files again.`);
+  }
+  if (packageMappingDrop){
+    ptWarnings.push(`No ${esc(packageMappingDrop)} column was chosen for the packages file, so ${plural(P.rows.length, 'row was', 'rows were')} dropped. Choose that PT column and load the files again.`);
+  }
+  if (unmatchedSessions) ptWarnings.push(`${plural(unmatchedSessions, 'session row', 'session rows')} did not match a member and ${unmatchedSessions === 1 ? 'was' : 'were'} dropped. Check that the client ID or name is the same in the member and appointments files, then load again.`);
+  if (unmatchedPackages) ptWarnings.push(`${plural(unmatchedPackages, 'package row', 'package rows')} did not match a member and ${unmatchedPackages === 1 ? 'was' : 'were'} dropped. Check that the client ID or name is the same in the member and packages files, then load again.`);
+  if (badSessionDates) ptWarnings.push(`${plural(badSessionDates, 'session row had', 'session rows had')} an unreadable start date and ${badSessionDates === 1 ? 'was' : 'were'} dropped. Correct the appointment dates and load again.`);
+  if (preJoinSessions) ptWarnings.push(`${plural(preJoinSessions, 'session was', 'sessions were')} dated before the member's join date and dropped. Check the join and appointment dates, then load again.`);
+  if (futureSessionStatuses) ptWarnings.push(`${plural(futureSessionStatuses, 'future session had', 'future sessions had')} a status other than scheduled and ${futureSessionStatuses === 1 ? 'was' : 'were'} dropped. Correct the date or status and load again.`);
+  if (badPackageDates) ptWarnings.push(`${plural(badPackageDates, 'package row had', 'package rows had')} an unreadable purchase date and ${badPackageDates === 1 ? 'was' : 'were'} dropped. Correct the sale dates and load again.`);
+  if (futurePackageDates) ptWarnings.push(`${plural(futurePackageDates, 'package row had', 'package rows had')} a future purchase date and ${futurePackageDates === 1 ? 'was' : 'were'} dropped. Correct the sale dates and load again.`);
+  if (badPackageCounts) ptWarnings.push(`${plural(badPackageCounts, 'package row had', 'package rows had')} an unreadable session count and ${badPackageCounts === 1 ? 'was' : 'were'} dropped. Correct the session or visit counts and load again.`);
+  if (A && ca.status < 0){
+    ptWarnings.push(`No status column was chosen, so ${plural(A.rows.length, 'session row was', 'session rows were')} treated as unclassified. Without it, a session cannot be told from a booking; choose the Status column and load again.`);
+  } else if (unclassifiedStatuses){
+    ptWarnings.push(`${plural(unclassifiedStatuses, 'session row had', 'session rows had')} a status this dashboard could not classify and ${unclassifiedStatuses === 1 ? 'is' : 'are'} excluded from status-based PT totals. Correct those values or choose the right Status column, then load again.`);
+  }
+  if (A && ca.package < 0) ptWarnings.push('No package or contract column was chosen, so sessions cannot draw down packages. Choose it and load again if the appointments export includes one.');
+  if (unlinkedPackageRefs) ptWarnings.push(`${plural(unlinkedPackageRefs, 'session named', 'sessions named')} a package that could not be matched to one purchase, so its package drawdown and price are unknown. Choose a shared package or contract reference in both PT files and load again.`);
+  if (badSessionPrices || badPackagePrices){
+    const parts = [];
+    if (badSessionPrices) parts.push(plural(badSessionPrices, 'session price', 'session prices'));
+    if (badPackagePrices) parts.push(plural(badPackagePrices, 'package price', 'package prices'));
+    ptWarnings.push(`${parts.join(' and ')} could not be read. Correct the Amount, Price, or Total values and load again; affected revenue stays unmeasurable.`);
+  }
+  if (badPackageExpires) ptWarnings.push(`${plural(badPackageExpires, 'package had', 'packages had')} an unreadable expiration date and ${badPackageExpires === 1 ? 'is' : 'are'} treated as having no expiry. Correct the expiration dates and load again.`);
   warn.innerHTML = `Loaded <b>${plural(members.length, 'member', 'members')}</b> and <b>${plural(matched, 'visit', 'visits')}</b>.` +
     (unmatched ? ` ${plural(unmatched, 'entry', 'entries')} did not match a member.` : '') +
     (badDates ? ` ${plural(badDates, 'member', 'members')} skipped for an unreadable join date.` : '') +
@@ -3383,7 +3602,8 @@ function importData(){
     (noPrice ? ` No monthly-rate column was chosen, so every membership is priced at ${fmtMoney(fallback)} until you set the real rates on the Business screen.` : '') +
     (preJoin ? ` ${plural(preJoin, 'entry was', 'entries were')} dated before the member's join date and dropped; join dates were not altered.` : '') +
     (dupMembers.size ? ` ${fmtInt(dupMembers.size)} member${dupMembers.size === 1 ? ' shares a name or ID with another record' : 's share a name or ID with another record'}${ci.id >= 0 ? ', so their scans were matched on ID where possible' : '; their visits went to whichever record came first'}. Add an ID column and load the files again to be sure they are right.` : '') +
-    (noChurn ? ` Nobody in this file has a cancellation date, so churn, length of engagement and lifetime value cannot be worked out. Re-export including cancelled members and choose the cancellation-date column.` : '');
+    (noChurn ? ` Nobody in this file has a cancellation date, so churn, length of engagement and lifetime value cannot be worked out. Re-export including cancelled members and choose the cancellation-date column.` : '') +
+    (ptWarnings.length ? ' ' + ptWarnings.join(' ') : '');
   STATE.contacted.clear();
   if (STATE.snoozed) STATE.snoozed.clear();   // ids restart at 1 on every import
   const readAt = new Date();
@@ -3549,7 +3769,12 @@ document.addEventListener('input', e => {
   }
 });
 
-for (const [zone, input, which, out] of [['dz-members','f-members','members','dz-members-out'], ['dz-scans','f-scans','scans','dz-scans-out']]){
+for (const [zone, input, which, out] of [
+  ['dz-members','f-members','members','dz-members-out'],
+  ['dz-scans','f-scans','scans','dz-scans-out'],
+  ['dz-sessions','f-sessions','sessions','dz-sessions-out'],
+  ['dz-packages','f-packages','packages','dz-packages-out']
+]){
   const z = document.getElementById(zone);
   z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('over'); });
   z.addEventListener('dragleave', () => z.classList.remove('over'));
