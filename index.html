@@ -441,6 +441,19 @@ td.r, th.r { text-align: right; }
 .bench .fill { display: block; height: 100%; border-radius: 4px; }
 .bench .mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text-2); }
 .bench .cap { color: var(--muted); font-size: 12.5px; }
+/* The target on each benchmark is August's to set, so it reads as an input
+   without shouting: a quiet underline that firms up on hover and focus. */
+.tgt { display: inline-flex; align-items: baseline; margin-left: auto; cursor: text; }
+.tgt .eyebrow { margin-right: 6px; cursor: text; }
+.tgt-fix { color: var(--muted); font-size: 12px; }
+.tgt input {
+  width: 4.2em; padding: 1px 0; border: 0; border-bottom: 1px dashed var(--line-firm);
+  background: transparent; color: var(--text-2); font-family: inherit; font-size: 12.5px;
+  font-weight: 600; text-align: left; transition: border-color 140ms ease-out, color 140ms ease-out;
+}
+.tgt input::-webkit-outer-spin-button, .tgt input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.tgt:hover input { border-bottom-color: var(--text-2); color: var(--text); }
+.tgt input:focus { outline: none; border-bottom-color: var(--text-2); color: var(--text); }
 
 .tooltip { position: fixed; z-index: 99; max-width: 260px; padding: 8px 11px; border: 1px solid var(--line-firm); border-radius: var(--r); background: var(--text); color: var(--bg); font-size: 12.5px; line-height: 1.45; opacity: 0; pointer-events: none; transition: opacity 120ms ease-out; }
 .tooltip b { color: var(--bg); }
@@ -476,8 +489,11 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
   .topbar { position: static; }
   .topbar-in { align-items: flex-start; flex-wrap: wrap; }
   .brandlock { width: calc(100% - 52px); }
-  .periods { width: 100%; overflow-x: auto; }
-  .periods button { min-width: max-content; flex: 1; }
+  /* Five periods no longer fit on one phone-width row. Wrapping keeps every
+     option visible; a horizontal scroll hid "Year to date" off the right edge
+     with nothing to say it was there. */
+  .periods { width: 100%; flex-wrap: wrap; overflow-x: visible; }
+  .periods button { min-width: max-content; flex: 1 1 auto; }
   .tabs { top: 0; }
   .btn, .btn-sm, .btn-icon, .chip, .search, .periods button, input, select { min-height: 44px; }
   .btn-icon { width: 44px; }
@@ -544,6 +560,7 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
       <button data-period="week" aria-pressed="true">Week</button>
       <button data-period="month" aria-pressed="false">Month</button>
       <button data-period="quarter" aria-pressed="false">Quarter</button>
+      <button data-period="ytd" aria-pressed="false">Year to date</button>
     </div>
     <button class="btn btn-icon" id="theme-toggle" type="button" aria-label="Switch between light and dark" title="Switch theme"><span id="theme-icon" aria-hidden="true"></span></button>
     <button class="btn" id="btn-import">Load my data</button>
@@ -722,8 +739,9 @@ tbody tr:focus-visible, .mcard:focus-visible { outline: 2px solid var(--brand); 
     </div>
 
     <div class="card sec">
-      <div class="card-h"><h3>Where you stand</h3><span class="sub">Compared with the Two-Brain benchmarks</span></div>
-      <div class="card-b"><div class="grid" id="benchmarks" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:20px"></div></div>
+      <div class="card-h"><h3>Where you stand</h3><span class="sub">Against common industry targets &mdash; edit any of them to match your own goals</span></div>
+      <div class="card-b"><div class="grid" id="benchmarks" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:20px"></div>
+        <button type="button" id="targets-reset" class="btn btn-sm" hidden style="margin-top:16px">Reset targets to the industry defaults</button></div>
     </div>
 
     <div class="card sec">
@@ -898,6 +916,22 @@ const TIERS = {
 };
 let RATES = Object.assign({}, TIERS);   // editable on the Growth screen
 
+/* Targets on the Business screen. These open on the figures the industry
+   consultancies publish for a gym this size, but they are only a starting
+   point: August edits any of them on screen and the choice is remembered. */
+const TARGET_DEFAULTS = {
+  members: 150,     // active members
+  arm:     205,     // revenue per member each month
+  leg:      13,     // average membership length, months
+  ltv:    2665      // revenue per member over their membership
+};
+let TARGETS = Object.assign({}, TARGET_DEFAULTS);
+
+/* A ceiling per target. Without one, a pasted 1.7e308 stays finite through the
+   input handler, then turns the chart scale into Infinity and collapses every
+   bar to zero -- an unreadable screen from one stray keystroke. */
+const TARGET_MAX = { members: 100000, arm: 10000, leg: 600, ltv: 1000000 };
+
 /* Phoenix reality: nobody trains in July. January is a stampede. */
 const SEASON = [1.14, 1.07, 1.03, 1.00, 0.97, 0.88, 0.82, 0.90, 1.00, 1.02, 0.98, 0.87];
 
@@ -1065,6 +1099,16 @@ function buildDemoData(){
 /* Set from the loaded dataset. null means "assume full coverage" (demo data). */
 const SCAN_COVERAGE = { from: null };
 
+/* How much of a window the visit log actually observed. Time before the export
+   begins is UNOBSERVED, not empty -- counting it as zero is how a 14-day export
+   once turned five-year members into "barely uses it". */
+function coverageOf(from, to){
+  const c = SCAN_COVERAGE.from;
+  if (c === null || c <= from) return { state: 'full',    observedFrom: from, fraction: 1 };
+  if (c >= to)                 return { state: 'none',    observedFrom: null, fraction: 0 };
+  return { state: 'partial', observedFrom: c, fraction: (to - c) / (to - from) };
+}
+
 const WEEKS_BASELINE = 8;      // weeks 3\u201310 back form the personal baseline
 const BASELINE_SKIP  = 2;      // the last 2 weeks are what we're testing
 const GHOST_DAYS     = 14;
@@ -1148,7 +1192,8 @@ function analyzeMember(m){
 
   return Object.assign({}, m, {
     active, endedAt, wk, last, daysSince, tenureDays, tenureMo,
-    baseline, current, drop, priorGap, risk, score, paid, rate, baselineKnown
+    baseline, current, drop, priorGap, risk, score, paid, rate, baselineKnown,
+    coveredSince: SCAN_COVERAGE.from
   });
 }
 
@@ -1193,8 +1238,8 @@ function reasonFor(a){
       : `after ${ten} of showing up`;
     return vary(a, [
       `A <b>${b}-a-week</b> regular at ${a.archLabel}. Nothing for <b>${a.daysSince} days</b>, ${tail}.`,
-      `Was in <b>${b} times a week</b> at ${a.archLabel} and has not scanned in <b>${a.daysSince} days</b>, ${tail}.`,
-      `<b>${a.daysSince} days</b> without a scan. Before that, ${b} visits a week at ${a.archLabel}, ${tail}.`
+      `Was in <b>${b} times a week</b> at ${a.archLabel} and has not visited in <b>${a.daysSince} days</b>, ${tail}.`,
+      `<b>${a.daysSince} days</b> without a visit. Before that, ${b} visits a week at ${a.archLabel}, ${tail}.`
     ]);
   }
   if (a.risk === 'red'){
@@ -1276,15 +1321,21 @@ function messageFor(a){
 
 function onboardReason(a){
   const wks = Math.max(1, Math.round(a.tenureDays / 7));
-  const total = a.scans.length;
-  const first30 = a.scans.filter(t => t < a.join + 30 * DAY).length;
+  /* Same two bounds as the first-month bands. The importer keeps scans dated
+     before the join and only warns, and a future-dated scan is not a visit yet,
+     so without both a new member with five stray pre-join rows reads as having
+     turned up five times in their first month. */
+  const own = a.scans.filter(t => t >= a.join && t < TODAY + DAY);
+  const total = own.length;
+  const first30 = own.filter(t => t < a.join + 30 * DAY).length;
+  const firstMonth = a.tenureDays >= 30 ? 'in their first month' : 'so far in their first month';
   if (total === 0)
     return { why: `Joined <b>${a.tenureDays} days ago</b> and has <b>not been in yet</b>. Paying ${fmtMoney(a.rate)} a month for a door they have not opened.`,
              msg: vary(a, [
                `Hey ${a.first}, welcome to EVSC. I'd love to help you feel at home here. Want me to show you around this week?`,
                `Hey ${a.first}, just checking in to see how you're feeling about getting started. If you'd like, I can meet you at the door and walk you through the floor. No judgement either way.`
              ]) };
-  return { why: `<b>${first30} ${first30 === 1 ? 'visit' : 'visits'}</b> in their first month. ${wks} weeks in, ${total} ${total === 1 ? 'visit' : 'visits'} altogether.`,
+  return { why: `<b>${first30} ${first30 === 1 ? 'visit' : 'visits'}</b> ${firstMonth}. ${wks} weeks in, ${total} ${total === 1 ? 'visit' : 'visits'} altogether.`,
            msg: vary(a, [
              `Hey ${a.first}, you're ${wks} weeks in. How's it going so far? Would it help to pick a couple of days that fit your week? Happy to work it out with you.`,
              `${a.first}, ${wks} weeks in and I want to make sure you're set up well. Want to take ten minutes with ${a.coach ? 'Coach ' + a.coach : 'me'} this week and make sure your plan feels clear?`
@@ -1293,12 +1344,17 @@ function onboardReason(a){
 
 function winReason(a){
   const b = fmtV(a.baseline), c = fmtV(a.current);
-  if (a.streak >= 3)
-    return { why: `<b>${a.streak} weeks straight</b> of three or more visits. ${tenureText(a.tenureMo)} in and still showing up.`,
+  if (a.streak >= 3){
+    const wkTxt = `${a.streak} week${a.streak === 1 ? '' : 's'}`;
+    return { why: a.streakAll
+               ? `<b>Every week since joining</b> with three or more visits &mdash; ${wkTxt} of it. ${tenureText(a.tenureMo)} in and still showing up.`
+               : `<b>${wkTxt} straight</b> of three or more visits. ${tenureText(a.tenureMo)} in and still showing up.`,
              msg: vary(a, [
-               `${a.first}, ${a.streak} weeks straight. I noticed, and it's the kind of consistency that makes this place what it is.`,
-               `${a.first}, you haven't missed a week in ${a.streak}. Really nice work.`
+               `${a.first}, ${wkTxt} straight. I noticed, and it's the kind of consistency that makes this place what it is.`,
+               `${a.first}, you haven't missed a week in ${wkTxt}. Really nice work.`,
+               `${a.first}, ${wkTxt} without a gap. That's the hard part, and you make it look easy.`
              ]) };
+  }
   return { why: `Up from <b>${b} to ${c} visits a week</b>. Something clicked in the last month.`,
            msg: vary(a, [
              `${a.first}, I've noticed how consistently you've been showing up lately. Nice work. Is there something you'd like to work toward next?`,
@@ -1311,11 +1367,32 @@ const PERIODS = {
   day:     { days: 1,  label: 'today',            long: 'Today' },
   week:    { days: 7,  label: 'the last 7 days',  long: 'This week' },
   month:   { days: 30, label: 'the last 30 days', long: 'This month' },
-  quarter: { days: 90, label: 'the last 90 days', long: 'This quarter' }
+  quarter: { days: 90, label: 'the last 90 days', long: 'This quarter' },
+  /* Year to date is the only period that is not a fixed rolling window: it is
+     anchored to January 1st, so its length changes every day of the year. Its
+     day count is worked out in periodRange rather than stored here. */
+  ytd:     { days: null, label: 'the year so far', long: 'Year to date' }
 };
+
 function periodRange(p){
-  const d = PERIODS[p].days;
   const end = TODAY + DAY;
+
+  /* Year to date is anchored on real local midnights at BOTH ends rather than
+     counted in fixed 24-hour steps. In a zone that observes DST, 241 * DAY lands
+     an hour either side of midnight, and `TODAY + DAY` does the same across a
+     transition -- clipping or double-counting an hour at the edge of the window.
+     Chandler is in Arizona and never shifts, but the file gets opened elsewhere.
+     The comparison window is the equally long stretch ending where this starts. */
+  if (PERIODS[p].days == null){
+    const t = new Date(TODAY);
+    const from = new Date(t.getFullYear(), 0, 1).getTime();
+    const to   = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1).getTime();
+    const span = to - from;
+    return { from, to, prevFrom: from - span, prevTo: from,
+             days: Math.max(1, Math.round(span / DAY)) };
+  }
+
+  const d = PERIODS[p].days;
   return { from: end - d * DAY, to: end, prevFrom: end - 2 * d * DAY, prevTo: end - d * DAY, days: d };
 }
 
@@ -1324,11 +1401,28 @@ function analyzeGym(data, period){
   const all = data.members.map(analyzeMember);
   const active = all.filter(m => m.active);
   const r = periodRange(period);
+  const coverageNow = coverageOf(r.from, r.to);
+  const coveragePrev = coverageOf(r.prevFrom, r.prevTo);
 
+  /* The streak is measured over the member's whole history, not the 26-week
+     sparkline window. Counting against `wk` capped every long-standing regular
+     at "26 weeks straight", which is a fact about our window rather than about
+     them -- and it printed the same sentence for every steady member.
+     `streakAll` marks a streak that reaches back to their first week here, so
+     the copy can say "since joining" instead of naming a number that is really
+     a floor. */
   for (const a of active){
+    const want = Math.max(1, Math.ceil(a.tenureDays / 7) + 1);
+    const span = Math.min(520, want);          // ten years is enough to look back
+    // Match the member-owned lower bound in onboardReason and first-month bands.
+    const full = weekBuckets(a.scans.filter(t => t >= a.join), span);
     let s = 0;
-    for (let i = 0; i < a.wk.length; i++){ if (a.wk[i] >= 3) s++; else break; }
+    for (let i = 0; i < full.length; i++){ if (full[i] >= 3) s++; else break; }
     a.streak = s;
+    /* Only "since joining" when we actually looked all the way back. A member of
+       fifteen years whose last ten are perfect has an unbroken run worth naming,
+       but it is not their whole history and must not be described as one. */
+    a.streakAll = s > 0 && s === full.length && span === want;
   }
 
   const scansIn = (from, to) => {
@@ -1343,6 +1437,13 @@ function analyzeGym(data, period){
   const cancelled = all.filter(m => m.endedAt && m.endedAt >= r.from && m.endedAt < r.to).length;
 
   const mrr = active.reduce((s, m) => s + m.rate, 0);
+  /* Membership revenue as it stood at the start of the selected window, so the
+     delta on that card rescopes with the period like every other delta on the
+     row. Comparing against the previous calendar month regardless of period
+     printed the same change on Today and on Year to date. */
+  // Joins take effect on their date; cancellations make members inactive on theirs.
+  const mrrPrev = all.reduce((s, m) =>
+    (m.join <= r.from && (!m.endedAt || m.endedAt > r.from)) ? s + m.rate : s, 0);
   const arm = active.length ? mrr / active.length : 0;
 
   const flagged = active.filter(NEEDS_CALL);
@@ -1384,10 +1485,11 @@ function analyzeGym(data, period){
 
   return {
     all, active, range: r, period,
-    visits, visitsPrev, joined, cancelled, mrr, arm, leg, ltv: arm * leg,
+    visits, visitsPrev, joined, cancelled, mrr, mrrPrev, arm, leg, ltv: arm * leg,
     avgTenure, churnAvg, months, flagged, atRiskRevenue,
     netChange: joined - cancelled,
-    coverage: data.coverage || data.scanStart
+    coverage: data.coverage || data.scanStart,
+    coverageNow, coveragePrev, coverageFrom: SCAN_COVERAGE.from
   };
 }
 
@@ -1397,24 +1499,38 @@ const SLOT_MIN = 10, SLOTS = 24 * 60 / SLOT_MIN;
 
 function analyzeUtilization(g){
   const { from, to } = g.range;
+  const coverage = coverageOf(from, to);
+  const observedFrom = coverage.state === 'partial' ? coverage.observedFrom : from;
+  let completeFrom = coverage.state === 'none' ? to : observedFrom;
+  // A partial first date cannot stand in for the hours before the log began.
+  if (coverage.state === 'partial' && observedFrom > startOfDay(observedFrom)){
+    const d = new Date(observedFrom); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 1);
+    completeFrom = d.getTime();
+  }
   const grid = Array.from({length:7}, () => new Array(24).fill(0));
+  const avgGrid = Array.from({length:7}, () => new Array(24).fill(0));
   const dayCount = new Array(7).fill(0);
 
-  for (let t = from; t < to; t += DAY) dayCount[new Date(t).getDay()]++;
+  let windowDayCount = 0, observedDayCount = 0;
+  for (let t = from; t < to; t += DAY) windowDayCount++;
+  for (let t = completeFrom; t < to; t += DAY){ dayCount[new Date(t).getDay()]++; observedDayCount++; }
 
-  let total = 0;
+  let total = 0, completeDayTotal = 0;
   // Occupancy per actual date, so a genuinely full Monday is not diluted by six
   // quiet days. The previous version averaged across the window and still called
   // the result a peak.
   const byDate = new Map();
-  // every calendar day in the window, so quiet days are not silently dropped
-  for (let t = from; t < to; t += DAY) byDate.set(startOfDay(t), new Float32Array(SLOTS));
+  // every fully observed calendar day, so quiet days are not silently dropped
+  for (let t = completeFrom; t < to; t += DAY) byDate.set(startOfDay(t), new Float32Array(SLOTS));
 
   for (const m of g.all) for (const t of m.scans){
     if (t < from || t >= to) continue;
     const d = new Date(t);
     grid[d.getDay()][d.getHours()]++;
     total++;
+    if (t < completeFrom) continue;
+    avgGrid[d.getDay()][d.getHours()]++;
+    completeDayTotal++;
     const key = startOfDay(t);
     let slots = byDate.get(key);
     if (!slots){ slots = new Float32Array(SLOTS); byDate.set(key, slots); }
@@ -1441,17 +1557,18 @@ function analyzeUtilization(g){
   dailyPeaks.sort((a, b) => a - b);
   const typicalPeak = dailyPeaks.length ? dailyPeaks[Math.floor(dailyPeaks.length / 2)] : 0;
 
-  const avg = grid.map((row, d) => row.map(v => dayCount[d] ? v / dayCount[d] : 0));
+  const avg = avgGrid.map((row, d) => row.map(v => dayCount[d] ? v / dayCount[d] : 0));
 
   // "An average day" gives each weekday equal weight, which is what you want
   // when reading a schedule, so divide by the number of distinct weekdays seen.
-  const daysPresent = Math.max(1, dayCount.filter(c => c > 0).length);
+  const daysPresent = dayCount.filter(c => c > 0).length;
   const hourly = new Array(24).fill(0);
   for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) hourly[h] += avg[d][h];
-  const hourlyAvg = hourly.map(v => v / daysPresent);
+  const hourlyAvg = hourly.map(v => daysPresent ? v / daysPresent : 0);
 
   // Concurrency comes from the timestamps themselves rather than a fudge factor.
   const empty = total === 0;
+  const noVisitsOnFullyObservedDays = completeDayTotal === 0;
   let peak = 0, peakH = 0, dead = Infinity, deadH = 0;
   for (let h = 5; h < 23; h++){
     if (hourlyAvg[h] > peak){ peak = hourlyAvg[h]; peakH = h; }
@@ -1481,6 +1598,7 @@ function analyzeUtilization(g){
   const starts = [];
   CLASSES.forEach((c, i) => c.days.forEach(d => starts.push({ i, d, min: c.h * 60 + c.m })));
   const heads = CLASSES.map(() => 0);
+  const avgHeads = CLASSES.map(() => 0);
   for (const m of g.all) for (const t of m.scans){
     if (t < from || t >= to) continue;
     const dt = new Date(t), dow = dt.getDay(), mins = dt.getHours() * 60 + dt.getMinutes();
@@ -1492,22 +1610,25 @@ function analyzeUtilization(g){
       const dist = Math.abs(delta);
       if (dist < bestD){ bestD = dist; best = st.i; }
     }
-    if (best !== null) heads[best]++;
+    if (best !== null){
+      heads[best]++;
+      if (t >= completeFrom) avgHeads[best]++;
+    }
   }
   const classes = CLASSES.map((c, i) => {
     const sessions = c.days.reduce((s, d) => s + dayCount[d], 0);
     return { name: c.name, h: c.h, m: c.m, days: c.days,
              time: fmtTime(c.h, c.m),
              dayLabel: c.days.length > 1 ? 'Mon-Fri' : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][c.days[0]],
-             sessions, avg: sessions ? heads[i] / sessions : 0 };
+             sessions, avg: sessions ? avgHeads[i] / sessions : 0 };
   }).sort((a, b) => (a.h * 60 + a.m) - (b.h * 60 + b.m));
 
   const maxCell = Math.max(0, ...avg.flat());
-  return { grid, avg, dayCount, daysPresent, total, empty, hourlyAvg,
+  return { grid, avg, dayCount, daysPresent, windowDayCount, observedDayCount, total, empty, noVisitsOnFullyObservedDays, hourlyAvg,
            peak, peakH, dead, deadH, peakDay, peakCell,
            maxOcc, typicalPeak, maxOccSlot,
            maxOccTime: fmtTime(Math.floor(maxOccSlot / 6), (maxOccSlot % 6) * 10),
-           inPeakWindow: share(16, 19), offPeak: share(9, 15), classes, maxCell };
+           inPeakWindow: share(16, 19), offPeak: share(9, 15), classes, maxCell, coverage };
 }
 
 function fmtTime(h, m){
@@ -1518,6 +1639,7 @@ function fmtTime(h, m){
 
 /* --------------------------------------------------------- lifecycle ---- */
 function analyzeLifecycle(g){
+  const firstMonthObserved = m => SCAN_COVERAGE.from === null || m.join >= SCAN_COVERAGE.from;
   // One fixed cohort, so the curve can only ever go down: everybody who joined
   // inside the observed window at least 12 months ago. Measuring a different
   // cohort at each month is survivorship bias, and it makes the line rise.
@@ -1525,7 +1647,7 @@ function analyzeLifecycle(g){
   const survival = [];
   for (let k = 0; k <= 12; k++){
     const alive = cohort.filter(m => !m.endedAt || monthsBetween(m.join, m.endedAt) >= k).length;
-    survival.push({ k, pct: cohort.length ? alive / cohort.length * 100 : 0, n: cohort.length });
+    survival.push({ k, pct: cohort.length ? alive / cohort.length * 100 : null, n: cohort.length });
   }
 
   // Does the first 30 days predict survival to 6 months?
@@ -1537,18 +1659,49 @@ function analyzeLifecycle(g){
   ].map(b => {
     // Landmark at day 30: only members who were still here to accumulate a
     // first-month record count, otherwise an early quit defines its own cause.
+    // The scan log must also reach back to their join date. `g.coverage` is the
+    // earliest JOIN in the file, not the earliest SCAN -- so on an export whose
+    // membership history runs deeper than its door log, anyone whose first month
+    // predates the scans would show zero visits and pile into the 0-3 band,
+    // manufacturing a finding out of missing data.
     const c6 = g.all.filter(m => m.join >= g.coverage
+      && firstMonthObserved(m)
       && monthsBetween(m.join, TODAY) >= 6
       && (!m.endedAt || m.endedAt >= m.join + 30 * DAY));
     const inB = c6.filter(m => {
-      const v = m.scans.filter(t => t < m.join + 30 * DAY).length;
+      // Lower bound matters: the importer keeps scans dated before the join and
+      // only warns about them, and without `t >= m.join` they would count as
+      // first-month visits.
+      const v = m.scans.filter(t => t >= m.join && t < m.join + 30 * DAY).length;
       return v >= b.lo && v <= b.hi;
     });
     const alive = inB.filter(m => !m.endedAt || monthsBetween(m.join, m.endedAt) >= 6).length;
     return { label: b.label, n: inB.length, pct: inB.length ? alive / inB.length * 100 : 0 };
   });
 
-  return { survival, buckets, cohortN: cohort.length };
+  /* What the bands actually support, worked out here rather than asserted in
+     the view. The page used to print "members with 8 or more visits in their
+     first month stayed longer" no matter what the bands said -- on the demo
+     data the 4-7 band already beat the 8-11 band, and on a real export the
+     middle bands can be empty entirely. A band needs MIN_BAND members before
+     its percentage means anything, and two readable bands need to differ by
+     more than MIN_GAP before the difference is worth a sentence. */
+  const MIN_BAND = 10, MIN_GAP = 10;
+  const readable = buckets.filter(b => b.n >= MIN_BAND);
+  let finding;
+  if (readable.length < 2){
+    finding = { kind: 'thin', readable: readable.length };
+  } else {
+    let best = readable[0], worst = readable[0];
+    for (const b of readable){
+      if (b.pct > best.pct) best = b;
+      if (b.pct < worst.pct) worst = b;
+    }
+    const gap = best.pct - worst.pct;
+    finding = gap < MIN_GAP ? { kind: 'flat', gap } : { kind: 'spread', best, worst, gap };
+  }
+
+  return { survival, buckets, finding, minBand: MIN_BAND, cohortN: cohort.length, firstMonthObserved };
 }
 </script>
 
@@ -1759,7 +1912,7 @@ const riskColor = r =>
    ========================================================================= */
 
 let DATA = buildDemoData();
-let G, U, L, WEEKLY;
+let G, U, L, WEEKLY, TRAILING_14_COVERAGE;
 const STATE = {
   period: 'week', screen: 'action',
   mFilter: 'all', mSearch: '', sort: { key: 'risk', dir: 1 },
@@ -1775,8 +1928,14 @@ function recompute(){
   // Must be set BEFORE analyzeMember runs, or the coverage gate never fires and
   // a short scan export silently invents baselines for long-standing members.
   SCAN_COVERAGE.from = DATA.source === 'demo' ? null : (DATA.scanStart || null);
+  TRAILING_14_COVERAGE = coverageOf(TODAY + DAY - BASELINE_SKIP * WEEK, TODAY + DAY);
   G = analyzeGym(DATA, STATE.period);
   G.scanStart = DATA.scanStart;
+  /* Utilization counts the SAME window as everything else. Clamping it to the
+     observed range made `U.total` disagree with `G.visits` for one period, so
+     two screens could print different visit counts for the same 30 days. In a
+     real import nothing predates `scanStart` anyway -- it IS the earliest scan --
+     so coverage belongs in the wording, not in the arithmetic. */
   U = analyzeUtilization(G);
   L = analyzeLifecycle(G);
   WEEKLY = (() => {
@@ -1785,7 +1944,8 @@ function recompute(){
       const i = Math.floor((TODAY + DAY - t) / WEEK);
       if (i >= 0 && i < 13) out[i]++;
     }
-    return out.reverse();
+    return out.reverse().filter((_, i) => G.coverageFrom === null
+      || TODAY + DAY - (12 - i) * WEEK > G.coverageFrom);
   })();
 }
 
@@ -1808,7 +1968,15 @@ const coachLabel = a => a.coach ? 'Coach ' + a.coach
   : a.programmed ? 'you write their programming'
   : 'trains on their own';
 
-const lastSeenText = a => a.daysSince === Infinity ? 'never' : a.daysSince === 0 ? 'today' : a.daysSince === 1 ? 'yesterday' : a.daysSince + ' days ago';
+const coverageNote = (from, lead = 'your visit log starts ') => lead + new Date(from).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+const lastSeenText = a => a.daysSince !== Infinity
+  ? a.daysSince === 0 ? 'today' : a.daysSince === 1 ? 'yesterday' : a.daysSince + ' days ago'
+  : a.coveredSince === null || a.coveredSince <= a.join
+    ? 'never'
+  : `none recorded ${coverageNote(a.coveredSince, 'since ')}`;
+const trailing14Text = (a, unit) => TRAILING_14_COVERAGE.state === 'none'
+  ? `&mdash; <span class="cap">${coverageNote(SCAN_COVERAGE.from)}</span>`
+  : `${fmt1(a.current)}${unit}${TRAILING_14_COVERAGE.state === 'partial' ? ` <span class="cap">recorded ${coverageNote(TRAILING_14_COVERAGE.observedFrom, 'since ')}</span>` : ''}`;
 
 function callCard(a, rank, why, msg, klass){
   const done = STATE.contacted.has(a.id);
@@ -1890,43 +2058,62 @@ function renderAction(){
   const netSentence = G.netChange === 0
     ? `No change over ${esc(P.label)}: ${G.joined} joined and ${G.cancelled} cancelled`
     : `${G.netChange > 0 ? 'Up' : 'Down'} <b>${Math.abs(G.netChange)}</b> over ${esc(P.label)}: ${G.joined} joined and ${G.cancelled} cancelled`;
-  const visitSentence = G.visitsPrev
-    ? `<b>${fmtInt(G.visits)}</b> visits, ${Math.abs(Math.round(vDelta))}% ${vDelta >= 0 ? 'more' : 'fewer'} than the ${P.days} days before`
-    : `<b>${fmtInt(G.visits)}</b> visits, with nothing in the period before to compare`;
-
+  const visitSentence = G.coverageNow.state === 'none'
+    ? `&mdash; visits because ${coverageNote(G.coverageFrom)}`
+    : G.coverageNow.state === 'partial'
+      ? `<b>${fmtInt(G.visits)}</b> visits ${coverageNote(G.coverageNow.observedFrom, 'since ')}, which is where your visit log begins &mdash; too little history to compare with the period before`
+      : G.coveragePrev.state !== 'full'
+        ? `<b>${fmtInt(G.visits)}</b> visits, with no reliable comparison because ${coverageNote(G.coverageFrom)}`
+        : G.visitsPrev
+          ? `<b>${fmtInt(G.visits)}</b> visits, ${Math.abs(Math.round(vDelta))}% ${vDelta >= 0 ? 'more' : 'fewer'} than the ${G.range.days === 1 ? 'day' : G.range.days + ' days'} before`
+          : `<b>${fmtInt(G.visits)}</b> visits, with nothing in the period before to compare`;
   const facts = [
     `<b>${fmtInt(G.active.length)}</b> active ${G.active.length === 1 ? 'member' : 'members'}`,
     netSentence,
     visitSentence
   ];
-  if (!U.empty) facts.push(`Busiest hour: ${esc(peakDayName)} at ${esc(fmtTime(U.peakCell.h, 0))}. Quietest: ${esc(fmtTime(U.deadH, 0))}`);
+  if (!U.empty && U.observedDayCount > 0 && !U.noVisitsOnFullyObservedDays) facts.push(`Busiest hour: ${esc(peakDayName)} at ${esc(fmtTime(U.peakCell.h, 0))}. Quietest: ${esc(fmtTime(U.deadH, 0))}`);
+  else if (!U.empty && U.observedDayCount === 0) facts.push(`&mdash; no complete day has been observed yet because the visit log starts partway through the day`);
+  else if (!U.empty && U.noVisitsOnFullyObservedDays) facts.push(`&mdash; no visits fell on a fully observed day`);
   document.getElementById('nar-facts').innerHTML = facts.map(f => `<li>${f}</li>`).join('');
 
-  const mPrev = G.months[G.months.length - 2] || G.months[0];
   document.getElementById('kpis').innerHTML =
     kpi({ label:'Active members', value: fmtInt(G.active.length),
           delta: G.netChange, deltaText: (G.netChange >= 0 ? '+' : '') + G.netChange,
           spark: sparkline(G.months.map(m => m.active), { w: 168, h: 30, color:'var(--s1)' }),
           foot: `${G.joined} joined \u00b7 ${G.cancelled} cancelled ${esc(P.label)}` }) +
-    kpi({ label:'Visits \u00b7 ' + P.label, value: fmtInt(G.visits),
-          delta: Math.round(vDelta), deltaText: Math.abs(Math.round(vDelta)) + '%',
+    kpi({ label:'Visits \u00b7 ' + P.label, value: G.coverageNow.state === 'none' ? '\u2014' : fmtInt(G.visits),
+          delta: G.coverageNow.state === 'full' && G.coveragePrev.state === 'full' && G.visitsPrev ? Math.round(vDelta) : undefined, deltaText: Math.abs(Math.round(vDelta)) + '%',
           spark: sparkline(WEEKLY, { w: 168, h: 30, color:'var(--s1)' }),
-          foot: `${fmt1(G.visits / Math.max(1, G.active.length))} visits per member on the current roster \u00b7 weekly visits over 13 weeks` }) +
+          /* Say the coverage caveat ONCE. Stating it beside the ratio, again beside
+             the sparkline and again for the comparison put "since Aug 9" three
+             times in one footnote. */
+          foot: G.coverageNow.state === 'none'
+            ? `No visits observed in this window because ${coverageNote(G.coverageFrom)}`
+            : `${fmt1(G.visits / Math.max(1, G.active.length))} visits per member on the current roster \u00b7 weekly visits over ${WEEKLY.length} ${WEEKLY.length === 1 ? 'week' : 'weeks'}`
+              + (G.coverageNow.state === 'partial'
+                  ? ` \u00b7 ${coverageNote(G.coverageFrom)}, so this window is only partly covered`
+                  : G.coveragePrev.state !== 'full'
+                    ? ` \u00b7 comparison unavailable because ${coverageNote(G.coverageFrom)}`
+                    : '') }) +
     kpi({ label:'Need a check-in', value: fmtInt(active.length), unit: active.length === 1 ? 'member' : 'members',
           foot: `<span style="color:var(--critical)">${fmtMoney(atRiskRevenue)} a month</span> in memberships \u00b7 ${Math.round(active.length / Math.max(1, G.active.length) * 100)}% of active members` }) +
     kpi({ label:'Monthly membership revenue', value: fmtMoney(G.mrr),
-          delta: G.mrr - mPrev.mrr, deltaText: fmtMoney(Math.abs(G.mrr - mPrev.mrr)),
+          delta: G.mrr - G.mrrPrev, deltaText: fmtMoney(Math.abs(G.mrr - G.mrrPrev)),
           spark: sparkline(G.months.map(m => m.mrr), { w: 168, h: 30, color:'var(--s1)' }),
-          foot: `${fmtMoney(G.arm)} per active member each month` });
+          foot: `${fmtMoney(G.arm)} per active member each month \u00b7 change over ${esc(P.label)}` });
 
   // ---- call list
   const list = active.slice().sort((a, b) => b.score - a.score);
   const shown = STATE.showAll ? list : list.slice(0, 8);
+  const unknown = G.active.filter(m => m.risk === 'unknown').length;
   document.getElementById('calls').innerHTML = shown.length
     ? shown.map((a, i) => callCard(a, i + 1, reasonFor(a), messageFor(a), 'r-' + (a.risk === 'low' ? 'amber' : a.risk))).join('')
     : G.flagged.length
       ? `<div class="card empty"><strong>Everyone is snoozed</strong>Use \u201cshow them\u201d below whenever you're ready to bring everyone back.</div>`
-      : `<div class="card empty"><strong>Nobody is slipping</strong>Every member is training at or above their usual rate.</div>`;
+      : unknown
+        ? `<div class="card empty"><strong>Not enough history yet</strong>${unknown} ${unknown === 1 ? 'member could' : 'members could'} not be assessed because the visit history is too short to establish their usual rate.</div>`
+        : `<div class="card empty"><strong>Nobody is slipping</strong>Every member is training at or above their usual rate.</div>`;
   document.getElementById('calls-sub').textContent =
     `${list.length} ${list.length === 1 ? 'member' : 'members'} worth a check-in, with the biggest changes first.`;
   document.getElementById('tab-count').textContent = list.length;
@@ -1955,16 +2142,23 @@ function renderAction(){
   }
 
   // ---- onboarding
-  const ob = G.active
+  const onboarding = G.active
     .filter(m => !isSnoozed(m.id))
-    .filter(m => m.tenureDays < 95 && m.tenureDays > 12)
-    .map(m => Object.assign(m, { first30: m.scans.filter(t => t < m.join + 30 * DAY && t < TODAY + DAY).length }))
+    .filter(m => m.tenureDays < 95 && m.tenureDays > 12);
+  const onboardingUnknown = onboarding.filter(m => !L.firstMonthObserved(m)).length;
+  const ob = onboarding
+    .filter(m => L.firstMonthObserved(m))
+    .map(m => Object.assign(m, { first30: m.scans.filter(t => t >= m.join && t < m.join + 30 * DAY && t < TODAY + DAY).length }))
     .filter(m => m.first30 < 7)
     .sort((a, b) => (a.first30 - b.first30) || (b.rate - a.rate))
     .slice(0, 4);
+  const onboardingUnknownNote = `${onboardingUnknown} ${onboardingUnknown === 1 ? 'new member could' : 'new members could'} not be judged because their first 30 days fall before the visit log begins.`;
   document.getElementById('onboard').innerHTML = ob.length
     ? ob.map((a, i) => { const r = onboardReason(a); return callCard(Object.assign({}, a, { risk:'new' }), i + 1, r.why, r.msg, 'r-new'); }).join('')
-    : `<div class="card empty"><strong>Every new member is training</strong>Nobody has signed up in the last three months and gone missing.</div>`;
+      + (onboardingUnknown ? `<p class="note">${onboardingUnknownNote}</p>` : '')
+    : onboardingUnknown
+      ? `<div class="card empty"><strong>Not enough history yet</strong>${onboardingUnknownNote}</div>`
+      : `<div class="card empty"><strong>Every new member is training</strong>Nobody has signed up in the last three months and gone missing.</div>`;
 
   // ---- wins
   const wins = G.active
@@ -2017,8 +2211,8 @@ function renderMembers(){
   document.getElementById('m-body').innerHTML = rows.map(a => {
     const known = a.baselineKnown !== false;
     const chg = known && a.baseline > 0 ? (a.current - a.baseline) / a.baseline * 100 : 0;
-    const chgTxt = a.baseline > 0 ? (chg >= 0 ? '+' : '') + Math.round(chg) + '%' : '\u2014';
-    const chgTitle = a.baseline <= 0 ? 'Not enough history to set a usual yet'
+    const chgTxt = known && a.baseline > 0 ? (chg >= 0 ? '+' : '') + Math.round(chg) + '%' : '\u2014';
+    const chgTitle = !known || a.baseline <= 0 ? 'Not enough history to set a usual yet'
       : a.current === a.baseline ? `${fmt1(a.baseline)} a week, unchanged`
       : `${fmt1(a.baseline)} a week ${a.current < a.baseline ? 'down' : 'up'} to ${fmt1(a.current)}`;
     return `<tr data-id="${a.id}" tabindex="0" role="button" aria-label="Open ${esc(a.name)}">
@@ -2026,7 +2220,7 @@ function renderMembers(){
       <td style="color:var(--text-2)">${esc(a.tier)}<span style="color:var(--muted)"> \u00b7 ${fmtMoney(a.rate)}</span></td>
       <td class="r tnum">${esc(tenureShort(a.tenureMo))}</td>
       <td class="r tnum">${known ? fmt1(a.baseline) : '&mdash;'}</td>
-      <td class="r tnum">${known ? fmt1(a.current) : '&mdash;'}<span title="${esc(chgTitle)}" style="color:${chg < -25 ? 'var(--critical)' : chg > 25 ? 'var(--good)' : 'var(--muted)'}; font-size:11px"> ${chgTxt}</span></td>
+      <td class="r tnum">${trailing14Text(a, '')}<span title="${esc(chgTitle)}" style="color:${chg < -25 ? 'var(--critical)' : chg > 25 ? 'var(--good)' : 'var(--muted)'}; font-size:11px"> ${chgTxt}</span></td>
       <td class="r">${sparkline(a.wk.slice(0, 12).reverse(), { w: 92, h: 24, color: 'var(--s1)' })}</td>
       <td class="r" style="color:${a.daysSince >= 14 ? 'var(--critical)' : 'var(--text-2)'}">${esc(lastSeenText(a))}</td>
       <td>${riskPill(a.risk)}</td>
@@ -2036,7 +2230,7 @@ function renderMembers(){
 
   cards.innerHTML = rows.map(a => `<article class="mcard" data-id="${a.id}" tabindex="0" role="button" aria-label="Open ${esc(a.name)}">
     <div class="top">${initialsAvatar(a)} <span class="nm">${esc(a.name)}</span> ${riskPill(a.risk)}</div>
-    <div class="stats"><span>usual <b>${esc(fmt1(a.baseline))}</b>/wk</span><span>now <b>${esc(fmt1(a.current))}</b>/wk</span><span>last seen ${esc(lastSeenText(a))}</span></div>
+    <div class="stats"><span>usual <b>${a.baselineKnown === false ? '&mdash;' : esc(fmt1(a.baseline))}</b>${a.baselineKnown === false ? '' : '/wk'}</span><span>now <b>${trailing14Text(a, '/wk')}</b></span><span>last seen ${esc(lastSeenText(a))}</span></div>
   </article>`).join('') || `<div class="empty"><strong>No matches</strong>Try a different search or filter.</div>`;
   cards.onclick = e => {
     const card = e.target.closest('.mcard');
@@ -2055,18 +2249,34 @@ function heatColor(v, max){
 
 function renderUtil(){
   const P = PERIODS[STATE.period];
-  document.getElementById('util-sub').textContent = U.daysPresent < 7
-    ? `${fmtInt(U.total)} visits over ${P.label}. Only ${U.daysPresent} day${U.daysPresent === 1 ? '' : 's'} of the week falls in this window. Switch to Month or Quarter to see the real pattern.`
-    : `${fmtInt(U.total)} visits over ${P.label}, averaged across each occurrence of that weekday.`;
+  const noCompleteDay = U.observedDayCount === 0 && G.coverageNow.state === 'partial';
+  const noCompleteDayNote = 'No complete day has been observed yet because the visit log starts partway through the day.';
+  const noFullyObservedVisits = !U.empty && U.noVisitsOnFullyObservedDays;
+  const noAveragedTraffic = noCompleteDay || noFullyObservedVisits;
+  const noAveragedTrafficNote = noCompleteDay ? noCompleteDayNote : 'No visits fell on a fully observed day.';
+  document.getElementById('util-sub').textContent = G.coverageNow.state === 'none'
+    ? `\u2014 visits over ${P.label} because ${coverageNote(G.coverageFrom)}.`
+    : noAveragedTraffic
+      ? `${fmtInt(U.total)} visits over ${P.label}. ${noAveragedTrafficNote}`
+    : U.daysPresent < 7
+      ? `${fmtInt(U.total)} visits over ${P.label}. Only ${U.daysPresent} day${U.daysPresent === 1 ? '' : 's'} of the week ${U.daysPresent === 1 ? 'falls' : 'fall'} in this window. Switch to Month or Quarter to see the real pattern.${G.coverageNow.state === 'partial' ? ` This covers records ${coverageNote(G.coverageNow.observedFrom, 'since ')}.` : ''}`
+      : `${fmtInt(U.total)} visits over ${P.label}, averaged across each occurrence of that weekday.${G.coverageNow.state === 'partial' ? ` This covers records ${coverageNote(G.coverageNow.observedFrom, 'since ')}.` : ''}`;
 
   const peakOccPct = Math.round(U.maxOcc / CAPACITY * 100);
   const DAYS3 = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  document.getElementById('util-kpis').innerHTML = U.empty
-    ? kpi({ label:'Visits', value:'0', foot:'Nobody came through the door in this window. Try a longer period.' })
+  document.getElementById('util-kpis').innerHTML = G.coverageNow.state === 'none'
+    ? kpi({ label:'Visits', value:'\u2014', foot:`No visits observed in this window because ${coverageNote(G.coverageFrom)}.` })
+    : U.empty
+    ? kpi({ label:'Visits', value:'0', foot:G.coverageNow.state === 'partial' ? `Nobody came through the door in the observed part of this window; ${coverageNote(G.coverageFrom)}.` : 'Nobody came through the door in this window. Try a longer period.' })
+    : noAveragedTraffic
+    ? kpi({ label:'Visits', value:fmtInt(U.total), foot:`Recorded since the visit log began partway through the day.` }) +
+      kpi({ label:'Busiest slot', value:'\u2014', foot:noAveragedTrafficNote }) +
+      kpi({ label:'Fullest moment', value:'\u2014', foot:noAveragedTrafficNote }) +
+      kpi({ label:'Quietest hour', value:'\u2014', foot:noAveragedTrafficNote })
     : kpi({ label:'Busiest slot', value: fmtTime(U.peakCell.h, 0),
-            foot:`${DAYS3[U.peakCell.d]} is the heaviest day, with about ${Math.round(U.peakCell.v)} people in that hour` }) +
+            foot:`${DAYS3[U.peakCell.d]} is the heaviest day, with about ${Math.round(U.peakCell.v)} ${Math.round(U.peakCell.v) === 1 ? 'person' : 'people'} in that hour` }) +
       kpi({ label:'Fullest moment', value: peakOccPct, unit:'%',
-            foot:`${Math.round(U.maxOcc)} people on the floor at once around ${esc(U.maxOccTime)}, against an assumed ${CAPACITY}-person capacity. A typical day peaks at ${Math.round(U.typicalPeak)}.` }) +
+            foot:`${Math.round(U.maxOcc)} ${Math.round(U.maxOcc) === 1 ? 'person' : 'people'} on the floor at once around ${esc(U.maxOccTime)}, against an assumed ${CAPACITY}-person capacity. A typical day peaks at ${Math.round(U.typicalPeak)}.` }) +
       kpi({ label:'Trained 4-8pm weekdays', value: Math.round(U.inPeakWindow * 100), unit:'%',
             foot:`${Math.round(U.offPeak * 100)}% train 9am to 4pm, when the floor is nearly empty` }) +
       kpi({ label:'Quietest hour', value: fmtTime(U.deadH, 0),
@@ -2082,26 +2292,36 @@ function renderUtil(){
   }
   const DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const fullTime = h => fmtTime(h, 0).replace(/([ap])$/, '$1m');
-  heatSummary.textContent = U.empty
-    ? 'No visits in this window yet, so there is no busiest or quietest time to show.'
-    : `Busiest: ${DAYNAMES[U.peakCell.d]} around ${fullTime(U.peakCell.h)}, about ${Math.round(U.peakCell.v)} people through the door. Quietest: ${fullTime(U.deadH)}.`;
+  heatSummary.textContent = G.coverageNow.state === 'none'
+    ? `\u2014 No traffic pattern can be measured because ${coverageNote(G.coverageFrom)}.`
+    : U.empty
+      ? `No visits in ${G.coverageNow.state === 'partial' ? 'the observed part of ' : ''}this window yet, so there is no busiest or quietest time to show.`
+      : noAveragedTraffic
+        ? `\u2014 ${noAveragedTrafficNote}`
+      : `Busiest: ${DAYNAMES[U.peakCell.d]} around ${fullTime(U.peakCell.h)}, about ${Math.round(U.peakCell.v)} ${Math.round(U.peakCell.v) === 1 ? 'person' : 'people'} through the door. Quietest: ${fullTime(U.deadH)}.${G.coverageNow.state === 'partial' ? ` Based on records ${coverageNote(G.coverageNow.observedFrom, 'since ')}.` : ''}`;
 
   // heatmap
   const heat = document.getElementById('heat');
-  heat.style.gridTemplateColumns = `46px repeat(${HOURS.length}, minmax(26px, 1fr))`;
-  let h = '<div></div>' + HOURS.map(x => `<div class="hcol">${fmtTime(x, 0)}</div>`).join('');
-  DOW_IDX.forEach((d, i) => {
-    h += `<div class="hlab">${DOWS[i]}</div>`;
-    for (const hr of HOURS){
-      const v = U.avg[d][hr];
-      const cls = CLASS_KEYS.has(`${d}-${hr}`) ? ' cls' : '';
-      const cellLabel = `${DOWS[i]} ${fmtTime(hr, 0)}, ${fmt1(v)} visits an hour${cls ? ', a class runs then' : ''}`;
-      h += `<div class="cell${cls}" style="background:${heatColor(v, U.maxCell)}" data-d="${d}" data-h="${hr}" data-i="${i}" role="img" aria-label="${esc(cellLabel)}"></div>`;
-    }
-  });
-  heat.innerHTML = h;
-  document.getElementById('heat-legend').innerHTML =
-    ['h0','h1','h2','h3','h4','h5','h6'].map(s => `<i style="background:var(--${s})"></i>`).join('');
+  if (G.coverageNow.state === 'none' || noAveragedTraffic){
+    heat.style.gridTemplateColumns = '1fr';
+    heat.innerHTML = `<div class="empty"><strong>&mdash;</strong>${noAveragedTraffic ? noAveragedTrafficNote : coverageNote(G.coverageFrom) + '.'}</div>`;
+    document.getElementById('heat-legend').innerHTML = '';
+  } else {
+    heat.style.gridTemplateColumns = `46px repeat(${HOURS.length}, minmax(26px, 1fr))`;
+    let h = '<div></div>' + HOURS.map(x => `<div class="hcol">${fmtTime(x, 0)}</div>`).join('');
+    DOW_IDX.forEach((d, i) => {
+      h += `<div class="hlab">${DOWS[i]}</div>`;
+      for (const hr of HOURS){
+        const v = U.avg[d][hr];
+        const cls = CLASS_KEYS.has(`${d}-${hr}`) ? ' cls' : '';
+        const cellLabel = `${DOWS[i]} ${fmtTime(hr, 0)}, ${fmt1(v)} visits an hour${cls ? ', a class runs then' : ''}`;
+        h += `<div class="cell${cls}" style="background:${heatColor(v, U.maxCell)}" data-d="${d}" data-h="${hr}" data-i="${i}" role="img" aria-label="${esc(cellLabel)}"></div>`;
+      }
+    });
+    heat.innerHTML = h;
+    document.getElementById('heat-legend').innerHTML =
+      ['h0','h1','h2','h3','h4','h5','h6'].map(s => `<i style="background:var(--${s})"></i>`).join('');
+  }
 
   heat.onmousemove = e => {
     const c = e.target.closest('.cell'); if (!c){ hideTip(); return; }
@@ -2114,56 +2334,88 @@ function renderUtil(){
   heat.onmouseleave = hideTip;
 
   // day curve
-  document.getElementById('curve-sub').textContent = `Average visits an hour, across the ${U.daysPresent} day${U.daysPresent === 1 ? '' : 's'} of the week in this window.`;
-  barChart(document.getElementById('curve'), {
-    h: 190, maxBar: 26,
-    data: HOURS.map(x => ({
-      label: x % 3 === 2 ? fmtTime(x, 0) : '',
-      full: fmtTime(x, 0) + '\u2013' + fmtTime((x + 1) % 24, 0),
-      value: U.hourlyAvg[x],
-      color: 'var(--s1)'
-    })),
-    yFmt: v => fmt1(v),
-    tip: x => fmt1(x.value) + ' visits an hour on average',
-    aria:'Average visits by hour of day'
-  });
+  document.getElementById('curve-sub').textContent = G.coverageNow.state === 'none'
+    ? `\u2014 No average day can be measured because ${coverageNote(G.coverageFrom)}.`
+    : noAveragedTraffic
+      ? `\u2014 ${noAveragedTrafficNote}`
+    : `Average visits an hour, across the ${U.daysPresent} day${U.daysPresent === 1 ? '' : 's'} of the week in this window.${G.coverageNow.state === 'partial' ? ` Based on records ${coverageNote(G.coverageNow.observedFrom, 'since ')}.` : ''}`;
+  if (G.coverageNow.state === 'none' || noAveragedTraffic){
+    document.getElementById('curve').innerHTML = `<div class="empty"><strong>&mdash;</strong>${noAveragedTraffic ? noAveragedTrafficNote : coverageNote(G.coverageFrom) + '.'}</div>`;
+  } else {
+    barChart(document.getElementById('curve'), {
+      h: 190, maxBar: 26,
+      data: HOURS.map(x => ({
+        label: x % 3 === 2 ? fmtTime(x, 0) : '',
+        full: fmtTime(x, 0) + '\u2013' + fmtTime((x + 1) % 24, 0),
+        value: U.hourlyAvg[x],
+        color: 'var(--s1)'
+      })),
+      yFmt: v => fmt1(v),
+      tip: x => fmt1(x.value) + ' visits an hour on average',
+      aria:'Average visits by hour of day'
+    });
+  }
 
   // class table
-  document.getElementById('class-table').innerHTML =
-    `<thead><tr><th>Class</th><th>Time</th><th>Days</th><th class="r">Heads on the floor</th><th class="r">Fill vs ${CLASS_CAP} cap</th></tr></thead><tbody>` +
-    U.classes.map(c => {
+  document.getElementById('class-table').innerHTML = G.coverageNow.state === 'none' || noAveragedTraffic
+    ? `<thead><tr><th>Class</th><th>Time</th><th>Days</th><th class="r">Heads on the floor</th><th class="r">Fill vs ${CLASS_CAP} cap</th></tr></thead><tbody><tr style="cursor:default"><td colspan="5" style="color:var(--muted)">&mdash; ${noAveragedTraffic ? noAveragedTrafficNote : coverageNote(G.coverageFrom) + '.'}</td></tr></tbody>`
+    : `<thead><tr><th>Class</th><th>Time</th><th>Days</th><th class="r">Heads on the floor</th><th class="r">Fill vs ${CLASS_CAP} cap</th></tr></thead><tbody>` +
+      U.classes.map(c => {
       if (!c.sessions) return `<tr style="cursor:default"><td class="mname">${esc(c.name)}</td><td style="color:var(--text-2)">${esc(c.time)}</td>
         <td style="color:var(--muted)">${esc(c.dayLabel)}</td><td class="r" style="color:var(--muted)">&mdash;</td>
-        <td class="r" style="color:var(--muted)">did not run in this window</td></tr>`;
+        <td class="r" style="color:var(--muted)">did not run in ${G.coverageNow.state === 'partial' ? 'the observed part of ' : ''}this window</td></tr>`;
       const pct = c.avg / CLASS_CAP * 100;
       const col = pct > 92 ? 'var(--critical)' : pct > 55 ? 'var(--good)' : 'var(--warning)';
       return `<tr style="cursor:default"><td class="mname">${esc(c.name)}</td><td style="color:var(--text-2)">${esc(c.time)}</td>
         <td style="color:var(--muted)">${esc(c.dayLabel)}</td><td class="r tnum">${fmt1(c.avg)}</td>
         <td class="r"><span style="display:inline-flex;align-items:center;gap:8px;justify-content:flex-end">
           <span style="width:88px;height:6px;background:var(--sunken);border-radius:4px;overflow:hidden;display:block">
-            <span style="display:block;height:100%;width:${Math.min(100, pct)}%;background:${col};border-radius:4px"></span></span>
+          <span style="display:block;height:100%;width:${Math.min(100, pct)}%;background:${col};border-radius:4px"></span></span>
           <span class="tnum" style="color:${col};min-width:40px">${Math.round(pct)}%</span></span></td></tr>`;
-    }).join('') + '</tbody>';
+      }).join('') + '</tbody>';
 
   // recommendations, derived not written
-  const ran = U.classes.filter(c => c.sessions > 0);
-  const over = ran.filter(c => c.avg / CLASS_CAP > .92);
-  const under = ran.filter(c => c.avg / CLASS_CAP < .3);
-  const listOf = arr => arr.length === 1 ? arr[0]
-    : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
-  const recos = [];
-  if (over.length) recos.push(`<b>${esc(listOf(over.map(c => c.name + ' ' + c.time)))}</b> ${over.length === 1 ? 'is' : 'are'} at or past the ${CLASS_CAP}-person cap. That is close to the assumed 20-person limit. Worth checking the real class count before adding a coach or a second heat.`);
-  if (under.length) recos.push(`<b>${esc(listOf(under.slice(0, 3).map(c => c.name + ' ' + c.time + ' ' + c.dayLabel)))}</b> ${under.length === 1 ? 'is running' : 'are running'} under a third full. These look lightly attended. Worth checking the class roster before combining them or trying a different time.`);
-  recos.push(`Only <b>${Math.round(U.offPeak * 100)}%</b> of weekday training happens between 9am and 4pm, and ${fmtTime(U.deadH, 0)} is dead. If you wanted to bring more people in during the quiet hours, an off-peak Open Gym rate would be one thing to try.`);
-  recos.push(`The floor gets to <b>${peakOccPct}%</b> of an assumed ${CAPACITY}-person capacity at its fullest, around ${esc(U.maxOccTime)}. Below 100% there is room. These estimates assume a 42-person floor and a 20-person class limit, so tell me the real ones and they will be right.`);
-  document.getElementById('util-reco').innerHTML = recos.map(r => `<p style="margin-bottom:10px">${r}</p>`).join('');
+  if (G.coverageNow.state === 'none'){
+    document.getElementById('util-reco').innerHTML = `<p>&mdash; No recommendations can be made because ${coverageNote(G.coverageFrom)}.</p>`;
+  } else if (noAveragedTraffic){
+    document.getElementById('util-reco').innerHTML = `<p>&mdash; No recommendations can be made. ${noAveragedTrafficNote}</p>`;
+  } else if (U.empty){
+    document.getElementById('util-reco').innerHTML = G.coverageNow.state === 'partial'
+      ? `<p>No visits in the observed part of this window; ${coverageNote(G.coverageFrom)}.</p>`
+      : '<p>No visits in this window. Try a longer period to see the schedule pattern.</p>';
+  } else {
+    const ran = U.classes.filter(c => c.sessions > 0);
+    const over = ran.filter(c => c.avg / CLASS_CAP > .92);
+    const under = ran.filter(c => c.avg / CLASS_CAP < .3);
+    const listOf = arr => arr.length === 1 ? arr[0]
+      : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
+    const recos = [];
+    if (over.length) recos.push(`<b>${esc(listOf(over.map(c => c.name + ' ' + c.time)))}</b> ${over.length === 1 ? 'is' : 'are'} at or past the ${CLASS_CAP}-person cap. That is close to the assumed 20-person limit. Worth checking the real class count before adding a coach or a second heat.`);
+    if (under.length) recos.push(`<b>${esc(listOf(under.slice(0, 3).map(c => c.name + ' ' + c.time + ' ' + c.dayLabel)))}</b> ${under.length === 1 ? 'is running' : 'are running'} under a third full. These look lightly attended. Worth checking the class roster before combining them or trying a different time.`);
+    recos.push(`Only <b>${Math.round(U.offPeak * 100)}%</b> of weekday training happens between 9am and 4pm, and ${fmtTime(U.deadH, 0)} is dead. If you wanted to bring more people in during the quiet hours, an off-peak Open Gym rate would be one thing to try.`);
+    recos.push(`The floor gets to <b>${peakOccPct}%</b> of an assumed ${CAPACITY}-person capacity at its fullest, around ${esc(U.maxOccTime)}. Below 100% there is room. These estimates assume a ${CAPACITY}-person floor, a ${CLASS_CAP}-person class limit, and a ${STAY_MIN}-minute stay for each visit because the door log records entries, not exits. Tell me the real numbers and they will be right.`);
+    document.getElementById('util-reco').innerHTML = recos.map(r => `<p style="margin-bottom:10px">${r}</p>`).join('');
+  }
 }
 
 /* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 GROWTH \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
+/* Reads the finding the engine worked out and says only what it supports. No
+   band is named unless enough members sit in it to mean something. */
+function firstMonthFinding(){
+  const f = L.finding;
+  if (!f || f.kind === 'thin')
+    return `Not enough history yet to say whether early visits went with staying longer &mdash; that needs at least two groups with ${L.minBand} or more members who joined over six months ago.`;
+  if (f.kind === 'flat')
+    return `In this data, how often someone came in during their first month made little difference to whether they were still here at month six. The groups are within ${Math.round(f.gap)} points of each other.`;
+  return `In this data, members with <b>${esc(f.best.label.replace(' visits', ''))} visits in their first month</b> were most likely to still be here at month six &mdash; ${Math.round(f.best.pct)}% of them, against ${Math.round(f.worst.pct)}% of the ${esc(f.worst.label.replace(' visits', ''))} group. That gap is a good place to look for where new members need more help.`;
+}
+
 function renderGrowth(){
   const M = G.months, last = M[M.length - 1], prev = M[M.length - 2];
   const hasChurn = G.all.some(m => m.cancel);
-  const hasLeg = G.leg > 0;   // needs a departure inside the trailing 12 months
+  // A zero-month stay is still measurable, so use the same qualifying departures
+  // as the engine instead of treating the resulting average as a presence flag.
+  const hasLeg = G.all.some(m => m.endedAt && m.endedAt > TODAY - 365 * DAY);
   document.getElementById('growth-sub').textContent = 'Rolling 13 months. The current month is still in progress.';
 
   document.getElementById('growth-kpis').innerHTML =
@@ -2173,14 +2425,17 @@ function renderGrowth(){
               foot:'12-month average \u00b7 3-5% is the healthy range' })
       : kpi({ label:'Monthly cancellation rate', value: '\u2014',
               foot:'No cancellations in the loaded data. Choose a cancellation-date column to work this out.' })) +
+    /* No benchmark figure here on purpose: "Where you stand" below owns the
+       targets now, and they are editable. Naming $205 in both places let the
+       screen contradict itself the moment August set his own number. */
     kpi({ label:'Revenue per member', value: fmtMoney(G.arm),
-          foot:`Each month, on average. ARM \u00b7 the benchmark for a gym this size is about $205.` }) +
+          foot:`What each member brings in every month, on average.` }) +
     (hasLeg
       ? kpi({ label:'Average membership length', value: fmt1(G.leg), unit:'mo',
-              foot:`How long a member stayed before cancelling. LEG \u00b7 industry average is 7.8 months.` }) +
+              foot:`How long a member stayed before cancelling. The industry average is about 7.8 months.` }) +
         kpi({ label:'Revenue per member, lifetime', value: fmtMoney(G.ltv),
-              foot:`Projected value of one retained member at today's revenue and engagement` })
-      : kpi({ label:'Length of engagement', value: '\u2014',
+              foot:`Revenue per member multiplied by how long members stay` })
+      : kpi({ label:'Average membership length', value: '\u2014',
               foot:'No cancellation in the last 12 months to measure against. Choose a cancellation-date column and include cancelled members.' }) +
         kpi({ label:'Revenue per member, lifetime', value: '\u2014',
               foot:'Needs average membership length, which needs cancellation dates.' }));
@@ -2190,54 +2445,86 @@ function renderGrowth(){
     tipLabel: i => M[i].full, aria:'Active members by month'
   });
   lineChart(document.getElementById('chart-mrr'), {
-    labels: M.map(m => m.label), series: [{ name:'MRR', color:'var(--s2)', values: M.map(m => m.mrr), fill: true }],
-    yFmt: v => '$' + Math.round(v / 1000) + 'k', tipLabel: i => M[i].full, aria:'Monthly recurring revenue'
+    labels: M.map(m => m.label), series: [{ name:'Monthly membership revenue', color:'var(--s2)', values: M.map(m => m.mrr), fill: true }],
+    yFmt: v => '$' + Math.round(v / 1000) + 'k', tipLabel: i => M[i].full, aria:'Monthly membership revenue'
   });
-  groupedBars(document.getElementById('chart-flow'), {
-    data: M.map(m => ({ label: m.label, full: m.full, a: m.joins, b: m.cancels, extra: 'Churn ' + fmt1(m.churn) + '%' })),
-    nameA:'Joined', colorA:'var(--good)', nameB:'Cancelled', colorB:'var(--negative)',
-    aria:'Joins and cancellations by month'
-  });
-  lineChart(document.getElementById('chart-survival'), {
-    labels: L.survival.map(s => s.k === 0 ? 'Join' : 'M' + s.k),
-    series: [{ name:'Still active', color:'var(--s3)', values: L.survival.map(s => s.pct), fill: true }],
-    yFmt: v => Math.round(v) + '%', floor: 0, ceil: 100,
-    tipLabel: i => i === 0 ? 'At signup' : `${i} month${i === 1 ? '' : 's'} in`,
-    aria:'Share of members still active by months since joining'
-  });
+  const flowEl = document.getElementById('chart-flow');
+  if (hasChurn){
+    groupedBars(flowEl, {
+      data: M.map(m => ({ label: m.label, full: m.full, a: m.joins, b: m.cancels, extra: 'Churn ' + fmt1(m.churn) + '%' })),
+      nameA:'Joined', colorA:'var(--good)', nameB:'Cancelled', colorB:'var(--negative)',
+      aria:'Joins and cancellations by month'
+    });
+  } else {
+    barChart(flowEl, {
+      h: 210,
+      data: M.map(m => ({ label: m.label, full: m.full, value: m.joins, color:'var(--good)' })),
+      tip: x => x.value + (x.value === 1 ? ' member joined' : ' members joined'),
+      aria:'Joins by month'
+    });
+    flowEl.insertAdjacentHTML('afterbegin', '<p class="note" style="margin-bottom:8px">Showing joins only. Choose a cancellation-date column to add cancellations and churn.</p>');
+  }
+  const survivalEl = document.getElementById('chart-survival');
+  if (L.cohortN){
+    lineChart(survivalEl, {
+      labels: L.survival.map(s => s.k === 0 ? 'Join' : 'M' + s.k),
+      series: [{ name:'Still active', color:'var(--s3)', values: L.survival.map(s => s.pct), fill: true }],
+      yFmt: v => Math.round(v) + '%', floor: 0, ceil: 100,
+      tipLabel: i => i === 0 ? 'At signup' : `${i} month${i === 1 ? '' : 's'} in`,
+      aria:'Share of members still active by months since joining'
+    });
+  } else {
+    survivalEl.innerHTML = `<div class="empty"><strong>&mdash;</strong>Needs members who joined at least twelve months ago.</div>`;
+  }
 
+  /* All four rows always render. When cancellation coverage is missing we still
+     show the row, with an em dash and the reason, because a metric that quietly
+     disappears reads as "not applicable" when the truth is "not measurable yet"
+     -- and it would strand two of his targets where he cannot edit them. */
   const bench = [
-    { label:'Active members', v: G.active.length, target: 150, fmt: fmtInt, note:'Two-Brain\'s first milestone' },
-    { label:'Revenue per member', v: G.arm, target: 205, fmt: fmtMoney, note:'ARM \u00b7 each month, on average' }
-  ].concat(hasLeg ? [
-    { label:'Average membership length', v: G.leg, target: 13, fmt: v => fmt1(v) + ' mo', note:'LEG \u00b7 industry average is 7.8 months' },
-    { label:'Revenue per member, lifetime', v: G.ltv, target: 2665, fmt: fmtMoney, note:'LTV \u00b7 revenue per member times average membership length' }
-  ] : []);
+    { key:'members', label:'Active members', v: G.active.length, has: true, fmt: fmtInt,
+      pre:'', suf:'', step:5, note:'A common first milestone for a gym this size' },
+    { key:'arm', label:'Revenue per member', v: G.arm, has: true, fmt: fmtMoney,
+      pre:'$', suf:'', step:5, note:'What each member brings in every month, on average' },
+    { key:'leg', label:'Average membership length', v: G.leg, has: hasLeg, fmt: v => fmt1(v) + ' mo',
+      pre:'', suf:'mo', step:1,
+      note: hasLeg ? 'How long members stay before cancelling'
+                   : 'Needs cancellation dates before this can be worked out' },
+    { key:'ltv', label:'Revenue per member, lifetime', v: G.ltv, has: hasLeg, fmt: fmtMoney,
+      pre:'$', suf:'', step:50,
+      note: hasLeg ? 'Revenue per member times average membership length'
+                   : 'Needs average membership length, which needs cancellation dates' }
+  ];
   document.getElementById('benchmarks').innerHTML = bench.map(b => {
-    const scale = Math.max(b.v, b.target) * 1.25;
-    const pct = b.v / scale * 100, tp = b.target / scale * 100;
-    const good = b.v >= b.target;
+    const target = TARGETS[b.key];
+    const scale = Math.max(b.has ? b.v : 0, target, 1) * 1.25;
+    const pct = b.has ? b.v / scale * 100 : 0, tp = target / scale * 100;
+    const good = b.has && target > 0 && b.v >= target;
     return `<div class="bench">
       <div style="display:flex; align-items:baseline; gap:8px">
-        <span class="num" style="font-size:26px; color:${good ? 'var(--good)' : 'var(--text)'}">${esc(b.fmt(b.v))}</span>
-        <span class="eyebrow" style="margin-left:auto">target ${esc(b.fmt(b.target))}</span>
+        <span class="num" style="font-size:26px; color:${good ? 'var(--good)' : (b.has ? 'var(--text)' : 'var(--muted)')}">${b.has ? esc(b.fmt(b.v)) : '\u2014'}</span>
+        <label class="tgt" title="Your target \u2014 edit it to match your own goal">
+          <span class="eyebrow">target</span>${b.pre ? `<span class="tgt-fix">${b.pre}</span>` : ''}<input type="number"
+            data-target="${esc(b.key)}" value="${target}" min="0" max="${TARGET_MAX[b.key]}" step="${b.step}"
+            aria-label="Target for ${esc(b.label)}">${b.suf ? `<span class="tgt-fix">${b.suf}</span>` : ''}</label>
       </div>
-      <div class="track"><span class="fill" style="width:${pct.toFixed(1)}%; background:${good ? 'var(--good)' : 'var(--s1)'}"></span><span class="mark" style="left:${tp.toFixed(1)}%"></span></div>
+      <div class="track"><span class="fill" style="width:${Math.min(pct, 100).toFixed(1)}%; background:${good ? 'var(--good)' : 'var(--s1)'}"></span><span class="mark" style="left:${Math.min(tp, 100).toFixed(1)}%"></span></div>
       <div class="cap"><b style="color:var(--text-2)">${esc(b.label)}</b> \u00b7 ${esc(b.note)}</div>
     </div>`;
   }).join('');
-
+  document.getElementById('targets-reset').hidden =
+    Object.keys(TARGET_DEFAULTS).every(k => TARGETS[k] === TARGET_DEFAULTS[k]);
   const ORD = ['var(--ord-1)', 'var(--ord-2)', 'var(--ord-3)', 'var(--ord-4)'];
   document.getElementById('first30').innerHTML =
-    `<p class="note" style="margin-bottom:16px">Every member who joined at least six months ago, grouped by how many times they came in during their first 30 days \u2014 and whether they were still paying at month six. It shows whether early visits went together with staying longer.</p>` +
+    `<p class="note" style="margin-bottom:16px">Members who joined at least six months ago, stayed active through day 30, and have a complete first-month visit record. They are grouped by first-month visits and whether they were still active at month six.</p>` +
     L.buckets.map((b, i) => `<div style="display:flex; align-items:center; gap:14px; margin-bottom:11px">
       <span style="width:96px; font-size:12px; color:var(--text-2)">${esc(b.label)}</span>
       <span style="flex:1; height:22px; background:var(--sunken); border-radius:5px; overflow:hidden; display:block">
         ${b.n ? `<span style="display:block; height:100%; width:${b.pct.toFixed(1)}%; background:${ORD[Math.min(i, ORD.length - 1)]}; border-radius:5px"></span>` : ''}</span>
       <span class="num" style="font-size:20px; width:56px; text-align:right; color:${b.n ? 'var(--text)' : 'var(--muted)'}">${b.n ? Math.round(b.pct) + '%' : '&mdash;'}</span>
-      <span class="cap" style="width:88px; font-size:10.5px">${b.n ? b.n + ' members' : 'nobody yet'}</span>
+      <span class="cap" style="width:88px; font-size:10.5px">${b.n ? b.n + (b.n === 1 ? ' member' : ' members') : 'nobody yet'}</span>
     </div>`).join('') +
-    `<p class="note" style="margin-top:14px">In this data, members with <b>8 or more visits in their first month</b> stayed longer. That difference is a good place to look for where new members need more help.</p>` +
+    `<p class="note" style="margin-top:14px">${firstMonthFinding()}</p>` +
     `<div style="margin-top:22px; border-top:1px solid var(--line); padding-top:16px">
       <div class="eyebrow" style="margin-bottom:10px">Membership rates used for revenue \u2014 edit to match your real pricing</div>
       <div id="rate-editor" style="display:flex; gap:10px; flex-wrap:wrap"></div>
@@ -2254,7 +2541,12 @@ function renderGrowth(){
 /* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 MEMBER DRAWER \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
 function openMember(id){
   const a = G.all.find(m => m.id === id); if (!a) return;
-  const wk = a.wk.slice(0, 26).reverse();
+  const wk = a.wk.slice(0, 26).reverse().filter((_, i) => a.coveredSince === null
+    || TODAY + DAY - (25 - i) * WEEK > a.coveredSince);
+  const historyCoverage = a.coveredSince === null || a.coveredSince <= a.join ? 'full'
+    : a.coveredSince >= TODAY + DAY ? 'none' : 'partial';
+  const chartCoverage = a.coveredSince === null || a.coveredSince <= TODAY + DAY - 26 * WEEK ? 'full'
+    : a.coveredSince >= TODAY + DAY ? 'none' : 'partial';
   const byHour = new Array(24).fill(0);
   const pastScans = a.scans.filter(t => t < TODAY + DAY);
   for (const t of pastScans) byHour[hourOf(t)]++;
@@ -2269,7 +2561,7 @@ function openMember(id){
     </div>
     ${a.risk !== 'green' && a.risk !== 'new' ? `<div class="narrative" style="margin-bottom:20px"><p class="txt">${reasonFor(a)}</p></div>` : ''}
     <div class="card" style="margin-bottom:16px">
-      <div class="card-h"><h3>Visits per week</h3><span class="sub">Last 26 weeks</span></div>
+      <div class="card-h"><h3>Visits per week</h3><span class="sub">${chartCoverage === 'full' ? 'Last 26 weeks' : chartCoverage === 'none' ? `&mdash; ${coverageNote(a.coveredSince)}` : coverageNote(a.coveredSince, 'Since ')}</span></div>
       <div class="card-b"><div id="d-chart"></div></div>
     </div>
     <div class="card" style="margin-bottom:16px">
@@ -2277,13 +2569,13 @@ function openMember(id){
       <div class="card-b"><dl class="kv">
         <dt>Joined</dt><dd>${new Date(a.join).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</dd>
         <dt>Time as a member</dt><dd>${esc(tenureText(a.tenureMo))}</dd>
-        <dt>Total visits</dt><dd>${fmtInt(pastScans.length)}</dd>
-        <dt>Usual week</dt><dd>${fmt1(a.baseline)} visits</dd>
-        <dt>Last two weeks</dt><dd style="color:${a.current < a.baseline * .7 ? 'var(--critical)' : 'var(--text)'}">${fmt1(a.current)} visits</dd>
-        <dt>Last visit</dt><dd>${a.last ? new Date(a.last).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' \u00b7 ' + esc(lastSeenText(a)) : 'never'}</dd>
-        <dt>Longest gap before now</dt><dd>${Math.round(a.priorGap)} days</dd>
-        <dt>Usual time</dt><dd>${topHours.length ? topHours.map(x => fmtTime(x.h, 0)).join(', ') : '\u2014'}</dd>
-        <dt>Paid to date</dt><dd>${fmtMoney(a.paid)}</dd>
+        <dt>Total visits</dt><dd>${historyCoverage === 'none' ? `&mdash; <span class="cap">${coverageNote(a.coveredSince)}</span>` : `${fmtInt(pastScans.length)}${historyCoverage === 'partial' ? ` <span class="cap">recorded ${coverageNote(a.coveredSince, 'since ')}</span>` : ''}`}</dd>
+        <dt>Usual week</dt><dd>${a.baselineKnown === false ? '&mdash; <span class="cap">not enough visit history to set a usual</span>' : fmt1(a.baseline) + ' visits'}</dd>
+        <dt>Last two weeks</dt><dd style="color:${a.current < a.baseline * .7 ? 'var(--critical)' : 'var(--text)'}">${trailing14Text(a, ' visits')}</dd>
+        <dt>Last visit</dt><dd>${a.last ? new Date(a.last).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' \u00b7 ' : ''}${esc(lastSeenText(a))}</dd>
+        <dt>Longest gap before now</dt><dd>${historyCoverage === 'none' ? `&mdash; <span class="cap">${coverageNote(a.coveredSince)}</span>` : pastScans.length < 2 ? '&mdash; <span class="cap">needs at least two recorded visits</span>' : `${Math.round(a.priorGap)} ${Math.round(a.priorGap) === 1 ? 'day' : 'days'}${historyCoverage === 'partial' ? ` <span class="cap">among visits recorded ${coverageNote(a.coveredSince, 'since ')}</span>` : ''}`}</dd>
+        <dt>Usual time</dt><dd>${topHours.length ? topHours.map(x => fmtTime(x.h, 0)).join(', ') + (historyCoverage === 'partial' ? ` <span class="cap">among visits recorded ${coverageNote(a.coveredSince, 'since ')}</span>` : '') : historyCoverage === 'none' ? `&mdash; <span class="cap">${coverageNote(a.coveredSince)}</span>` : historyCoverage === 'partial' ? 'no visits recorded since the log start' : 'no visits recorded'}</dd>
+        <dt>Membership dues, estimated</dt><dd>${fmtMoney(a.paid)}</dd>
         <dt>Status</dt><dd>${a.active ? 'Active' : 'Cancelled ' + new Date(a.cancel).toLocaleDateString('en-US',{month:'short',year:'numeric'})}</dd>
       </dl></div>
     </div>
@@ -2291,13 +2583,17 @@ function openMember(id){
       <div class="card-b"><div class="msg" style="background:var(--sunken); border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-size:12.5px; color:var(--text-2); line-height:1.6">${esc(messageFor(a))}</div>
       <button class="btn btn-sm act-copy" style="margin-top:12px" data-msg="${esc(messageFor(a))}">Copy text</button></div></div>` : ''}`;
 
-  barChart(document.getElementById('d-chart'), {
-    h: 170, maxBar: 14,
-    data: wk.map((v, i) => ({ label: i % 6 === 0 ? (26 - i) + 'w' : '', full: `${26 - i} weeks ago`, value: v,
-      color: i >= 24 ? viewRiskColor(a.risk) : 'var(--s1)', op: i >= 24 ? 1 : .55 })),
-    tip: x => x.value + (x.value === 1 ? ' visit' : ' visits'),
-    aria:'Weekly visits'
-  });
+  if (chartCoverage === 'none'){
+    document.getElementById('d-chart').innerHTML = `<div class="empty"><strong>&mdash;</strong>${coverageNote(a.coveredSince)}.</div>`;
+  } else {
+    barChart(document.getElementById('d-chart'), {
+      h: 170, maxBar: 14,
+      data: wk.map((v, i) => ({ label: i % 6 === 0 ? (wk.length - i) + 'w' : '', full: `${wk.length - i} weeks ago`, value: v,
+        color: i >= wk.length - 2 ? viewRiskColor(a.risk) : 'var(--s1)', op: i >= wk.length - 2 ? 1 : .55 })),
+      tip: x => x.value + (x.value === 1 ? ' visit' : ' visits'),
+      aria:'Weekly visits'
+    });
+  }
   document.getElementById('drawer').setAttribute('open', '');
 }
 </script>
@@ -2311,6 +2607,44 @@ function openMember(id){
 /* A plain two-way switch. Until August expresses a preference we follow the
    host or the operating system; the first click pins it and it stays pinned. */
 const THEME_KEY = 'evsc-theme';
+
+/* August's own targets on the Business screen. Unlike the snooze list, these are
+   a stated preference rather than session state, so they survive a reload the
+   same way the theme does. Anything missing or nonsensical falls back to the
+   published default rather than poisoning the chart. */
+const TARGETS_KEY = 'evsc-targets';
+
+function loadTargets(){
+  try {
+    const raw = JSON.parse(localStorage.getItem(TARGETS_KEY) || '{}');
+    for (const k of Object.keys(TARGET_DEFAULTS)) TARGETS[k] = cleanTarget(k, raw[k]);
+  } catch (_) {}
+}
+
+/* One gate for every way a target can arrive: typed, pasted, or read back out
+   of localStorage. Anything not a finite number in range falls back to the
+   published default rather than reaching the chart. */
+function cleanTarget(key, raw){
+  const v = +raw;
+  if (!Number.isFinite(v) || v < 0) return TARGET_DEFAULTS[key];
+  return Math.min(v, TARGET_MAX[key]);
+}
+
+/* A membership rate ceiling. `/^\d+(\.\d+)?$/` admits four hundred digits, and
+   parseFloat turns that into Infinity -- which then becomes infinite revenue and
+   NaN chart coordinates. No gym charges six figures a month. */
+const RATE_MAX = 100000;
+function cleanRate(v){
+  const n = +v;
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(n, RATE_MAX);
+}
+
+function saveTargets(){
+  try { localStorage.setItem(TARGETS_KEY, JSON.stringify(TARGETS)); } catch (_) {}
+}
+
+loadTargets();
 
 function storedTheme(){
   try {
@@ -2403,7 +2737,7 @@ const GUESS = {
   first: [/first ?name/i], last: [/last ?name/i],
   id:    [/client ?id/i, /member ?id/i, /badge/i, /^id$/i, /barcode/i, /key ?fob/i, /fob/i, /card ?(no|num|#)/i],
   join:  [/join/i, /start ?date/i, /created/i, /first ?visit/i, /sign.?up/i],
-  tier:  [/membership/i, /contract/i, /pricing ?option/i, /plan/i, /service/i],
+  tier:  [/pricing ?option/i, /plan/i, /contract/i, /service/i, /membership(?!.*\bdate\s*$)/i],
   rate:  [/rate/i, /price/i, /amount/i, /monthly/i, /^value$/i],
   end:   [/cancel/i, /end ?date/i, /termination/i, /expir/i, /inactive ?date/i, /last ?day/i],
   ref:   [/client ?id/i, /member ?id/i, /badge/i, /^id$/i, /barcode/i, /key ?fob/i, /fob/i, /card ?(no|num|#)/i, /name/i, /user/i],
@@ -2441,6 +2775,17 @@ function buildMapping(){
     row('Who came in', 'required \u00b7 member ID or name', selHTML('c-ref', S.headers, guessCol(S.headers, 'ref'), false)) +
     row('When', 'required \u00b7 date and time of the entry', selHTML('c-when', S.headers, guessCol(S.headers, 'when'), false));
   document.getElementById('mapping').hidden = false;
+}
+
+function clearImportFiles(){
+  FILES.members = null;
+  FILES.scans = null;
+  document.getElementById('f-members').value = '';
+  document.getElementById('f-scans').value = '';
+  document.getElementById('dz-members-out').textContent = '';
+  document.getElementById('dz-scans-out').textContent = '';
+  document.getElementById('mapping-body').textContent = '';
+  document.getElementById('mapping').hidden = true;
 }
 
 function readFile(f, which, outId){
@@ -2482,6 +2827,16 @@ function importData(){
     warn.innerHTML = `<span style="color:var(--brand)">Choose either a full-name column or a first-name column.</span>`;
     return;
   }
+  const chosenMemberCols = Object.entries(ci).filter(([, col]) => col >= 0);
+  const repeatedMemberCol = chosenMemberCols.find(([, col], i) => chosenMemberCols.some(([, other], j) => j < i && other === col));
+  if (repeatedMemberCol){
+    warn.innerHTML = '<span style="color:var(--brand)">Choose a different column for each member field before loading.</span>';
+    return;
+  }
+  if (cs.ref === cs.when){
+    warn.innerHTML = '<span style="color:var(--brand)">Choose a different column for each door-scan field before loading.</span>';
+    return;
+  }
 
   // "Nakamura, Alexis" and "Alexis Nakamura" have to resolve to one person
   const nameKey = v => String(v).toLowerCase().replace(/[^a-z0-9 ]+/g, ' ')
@@ -2491,7 +2846,7 @@ function importData(){
   // owner's, and silently pricing his members off demo rates would be worse
   // than having no rates at all.
   const RATE_SAMPLES = Object.create(null);
-  const members = [], byKey = new Map(), dupNames = new Set();
+  const members = [], byKey = new Map(), dupMembers = new Set();
   let id = 1, badDates = 0, badRates = 0, badEnds = 0;
   for (const r of M.rows){
     const nm = ci.name >= 0 ? (r[ci.name] || '').trim()
@@ -2505,7 +2860,8 @@ function importData(){
     // strip only currency symbols, spaces and thousands separators, then require
     // the whole remaining value to be a plain non-negative number
     const rateRaw = ci.rate >= 0 ? String(r[ci.rate] == null ? '' : r[ci.rate]).trim().replace(/[$\u00a3\u20ac,\s]/g, '') : '';
-    const rate = /^\d+(\.\d+)?$/.test(rateRaw) ? parseFloat(rateRaw) : null;
+    const rateNumber = parseFloat(rateRaw);
+    const rate = /^\d+(\.\d+)?$/.test(rateRaw) && Number.isFinite(rateNumber) ? cleanRate(rateNumber) : null;
     if (ci.rate >= 0 && rateRaw !== '' && rate === null) badRates++;
     const m = {
       id: id++, first: parts[0], last: parts.slice(1).join(' ') || '',
@@ -2521,20 +2877,19 @@ function importData(){
     }
     (RATE_SAMPLES[tier] = RATE_SAMPLES[tier] || []); if (rate !== null && rate > 0) RATE_SAMPLES[tier].push(rate);
     members.push(m);
-    let clash = false;
     // only a key already owned by a DIFFERENT member is a real collision
     const claim = k => {
       const owner = byKey.get(k);
-      if (owner && owner !== m) clash = true;
+      if (owner && owner !== m){ dupMembers.add(owner); dupMembers.add(m); }
       else byKey.set(k, m);
     };
     claim(nm.toLowerCase());
     claim(nameKey(nm));
     if (ci.id >= 0 && r[ci.id]) claim(String(r[ci.id]).trim().toLowerCase());
-    if (clash) dupNames.add(nm);
   }
 
-  let matched = 0, unmatched = 0, badTs = 0;
+  let matched = 0, unmatched = 0, badTs = 0, preJoin = 0, futureTs = 0;
+  const importNow = Date.now();
   for (const r of S.rows){
     const raw = String(r[cs.ref] || '').trim();
     const k = raw.toLowerCase();
@@ -2542,18 +2897,20 @@ function importData(){
     if (!m){ if (k) unmatched++; continue; }
     const d = parseWhen(r[cs.when]);
     if (!d){ badTs++; continue; }
-    m.scans.push(d.getTime()); matched++;
+    const ts = d.getTime();
+    if (ts < m.join){ preJoin++; continue; }
+    if (ts > importNow){ futureTs++; continue; }
+    m.scans.push(ts); matched++;
   }
-  // Their join date is contractual. An entry before it is a data problem worth
-  // reporting, not a reason to silently move the date and corrupt tenure.
-  let preJoin = 0;
-  for (const m of members){
-    m.scans.sort((a, b) => a - b);
-    if (m.scans.length && m.scans[0] < m.join) preJoin++;
-  }
+  for (const m of members) m.scans.sort((a, b) => a - b);
 
   if (!members.length || !matched){
-    warn.innerHTML = `<span style="color:var(--brand)">${!members.length ? 'No members were loaded, because none had both a readable name and a join date' : 'No visits were loaded, because the IDs or names in the two files did not match'}. Check the column choices above.</span>`;
+    const details = [];
+    if (unmatched) details.push(`${plural(unmatched, 'entry', 'entries')} did not match a member.`);
+    if (badTs) details.push(`${plural(badTs, 'entry', 'entries')} had an unreadable date and time.`);
+    if (preJoin) details.push(`${plural(preJoin, 'entry was', 'entries were')} dated before the member's join date and dropped; join dates were not altered.`);
+    if (futureTs) details.push(`${plural(futureTs, 'entry was', 'entries were')} dated in the future and dropped.`);
+    warn.innerHTML = `<span style="color:var(--brand)">${!members.length ? 'No members were loaded, because none had both a readable name and a join date.' : 'No visits were loaded.'} ${details.join(' ')} Check the column choices and source dates above, then try again.</span>`;
     return;
   }
   // Take the median rate per tier rather than the last row seen, so one
@@ -2579,11 +2936,12 @@ function importData(){
     (unmatched ? ` ${plural(unmatched, 'entry', 'entries')} did not match a member.` : '') +
     (badDates ? ` ${plural(badDates, 'member', 'members')} skipped for an unreadable join date.` : '') +
     (badTs ? ` ${plural(badTs, 'entry', 'entries')} had an unreadable date and time.` : '') +
+    (futureTs ? ` ${plural(futureTs, 'entry was', 'entries were')} dated in the future and dropped.` : '') +
     (badRates ? ` ${plural(badRates, 'member', 'members')} had a rate that could not be read and fell back to the tier rate.` : '') +
     (badEnds ? ` ${plural(badEnds, 'member', 'members')} had an unreadable cancellation date and are still counted as active.` : '') +
     (noPrice ? ` No monthly-rate column was chosen, so every membership is priced at ${fmtMoney(fallback)} until you set the real rates on the Business screen.` : '') +
-    (preJoin ? ` ${plural(preJoin, 'member has', 'members have')} entries dated before their join date, which usually means the two files disagree.` : '') +
-    (dupNames.size ? ` ${fmtInt(dupNames.size)} member${dupNames.size === 1 ? ' shares a name or ID with another record' : 's share a name or ID with another record'}${ci.id >= 0 ? ', so their scans were matched on ID where possible' : '; their visits went to whichever record came first'}. Add an ID column and load the files again to be sure they are right.` : '') +
+    (preJoin ? ` ${plural(preJoin, 'entry was', 'entries were')} dated before the member's join date and dropped; join dates were not altered.` : '') +
+    (dupMembers.size ? ` ${fmtInt(dupMembers.size)} member${dupMembers.size === 1 ? ' shares a name or ID with another record' : 's share a name or ID with another record'}${ci.id >= 0 ? ', so their scans were matched on ID where possible' : '; their visits went to whichever record came first'}. Add an ID column and load the files again to be sure they are right.` : '') +
     (noChurn ? ` Nobody in this file has a cancellation date, so churn, length of engagement and lifetime value cannot be worked out. Re-export including cancelled members and choose the cancellation-date column.` : '');
   STATE.contacted.clear();
   if (STATE.snoozed) STATE.snoozed.clear();   // ids restart at 1 on every import
@@ -2591,6 +2949,7 @@ function importData(){
   const readTime = String(readAt.getHours()).padStart(2, '0') + ':' + String(readAt.getMinutes()).padStart(2, '0');
   setFreshness(`EVSC data \u00b7 ${plural(members.length, 'member', 'members')} \u00b7 ${plural(matched, 'visit', 'visits')} \u00b7 loaded ${readTime}`);
   refresh();
+  clearImportFiles();
   document.getElementById('importer').removeAttribute('open');
 }
 
@@ -2680,12 +3039,16 @@ document.addEventListener('click', e => {
   if (e.target.id === 'import-x' || e.target.id === 'importer'){ document.getElementById('importer').removeAttribute('open'); return; }
   if (e.target.id === 'drawer-x' || e.target.id === 'drawer'){ document.getElementById('drawer').removeAttribute('open'); return; }
   if (e.target.id === 'do-import'){ importData(); return; }
+  if (e.target.id === 'targets-reset'){
+    TARGETS = Object.assign({}, TARGET_DEFAULTS);
+    saveTargets(); refresh(); return;
+  }
   if (e.target.id === 'reset-demo'){
     RATES = Object.assign({}, TIERS);
     DATA = buildDemoData(); STATE.contacted.clear(); if (STATE.snoozed) STATE.snoozed.clear();
     document.getElementById('import-warn').textContent = 'Demo data restored.';
     setFreshness('Demo data \u00b7 generated just now');
-    refresh(); document.getElementById('importer').removeAttribute('open'); return;
+    refresh(); clearImportFiles(); document.getElementById('importer').removeAttribute('open'); return;
   }
 });
 
@@ -2703,8 +3066,35 @@ document.addEventListener('keydown', e => {
 
 document.addEventListener('input', e => {
   if (e.target.id === 'm-search'){ STATE.mSearch = e.target.value; renderMembers(); }
+  if (e.target.dataset && e.target.dataset.target){
+    const key = e.target.dataset.target;
+    if (key in TARGETS){
+      TARGETS[key] = e.target.value === '' ? 0 : cleanTarget(key, e.target.value);
+      saveTargets();
+      clearTimeout(window.__tg);
+      window.__tg = setTimeout(() => {
+        const el = document.activeElement;
+        const k = el && el.dataset && el.dataset.target;
+        /* Where the caret was, so the re-render does not eat the next keystroke.
+           Selecting all here would: type "2", pause, type "0", and the 0 would
+           replace the selected 2 instead of appending to it. */
+        const caret = k ? el.selectionStart : null;
+        refresh();
+        if (k){
+          const again = [...document.querySelectorAll('[data-target]')].find(el2 => el2.dataset.target === k);
+          if (again){
+            again.focus();
+            if (caret != null){
+              const at = Math.min(caret, again.value.length);
+              try { again.setSelectionRange(at, at); } catch (_) {}
+            }
+          }
+        }
+      }, 350);
+    }
+  }
   if (e.target.dataset && e.target.dataset.tier){
-    RATES[e.target.dataset.tier] = Math.max(0, +e.target.value || 0);
+    RATES[e.target.dataset.tier] = cleanRate(e.target.value);
     clearTimeout(window.__rt);
     window.__rt = setTimeout(() => {
       const tier = document.activeElement && document.activeElement.dataset.tier;
